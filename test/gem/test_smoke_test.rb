@@ -57,4 +57,23 @@ class Gem::TestSmokeTest < Minitest::Test
     refute result.success
     assert_match(/No smoke tests found/, result.stderr)
   end
+
+  def test_run_passes_env_to_subprocess
+    FileUtils.mkdir_p("test/smoke")
+    File.write("test/smoke/myapp.rb", 'puts "PORT=#{ENV["BEFORE_PORT"]}"')
+
+    # Create minimal Gemfile so bundle exec works
+    File.write("Gemfile", 'source "https://rubygems.org"')
+    system("bundle", "install", "--quiet", out: File::NULL, err: File::NULL)
+
+    output_dir = File.join(@tmpdir, "output")
+    smoke = Gem::Update::SmokeTest.new("myapp")
+    result = smoke.run(
+      directory: @tmpdir,
+      output_dir: output_dir,
+      env: { "BEFORE_PORT" => "4000" }
+    )
+
+    assert_match(/PORT=4000/, result.stdout)
+  end
 end

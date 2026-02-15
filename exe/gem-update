@@ -15,5 +15,6 @@ unless system("git rev-parse --is-inside-work-tree > /dev/null 2>&1")
   exit 1
 end
 
-runner = Gem::Update::Runner.new(gem_name)
+config = Gem::Update::Config.new(gem_name)
+runner = Gem::Update::Runner.new(gem_name, config: config)
 runner.run

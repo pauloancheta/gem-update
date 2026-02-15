@@ -21,7 +21,7 @@ module Gem
         files
       end
 
-      def run(directory:, output_dir:)
+      def run(directory:, output_dir:, env: {})
         files = test_files
         if files.empty?
           warn "No smoke tests found for '#{@gem_name}'. " \
@@ -37,6 +37,7 @@ module Gem
         files.each do |file|
           abs_file = File.expand_path(file, Dir.pwd)
           stdout, stderr, status = Open3.capture3(
+            env,
             "bundle", "exec", "ruby", abs_file,
             chdir: directory
           )
