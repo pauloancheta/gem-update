@@ -60,7 +60,7 @@ class Gem::TestSmokeTest < Minitest::Test
 
   def test_run_passes_env_to_subprocess
     FileUtils.mkdir_p("test/smoke")
-    File.write("test/smoke/myapp.rb", 'puts "PORT=#{ENV["BEFORE_PORT"]}"')
+    File.write("test/smoke/myapp.rb", 'puts "PORT=#{ENV["SERVER_PORT"]}"')
 
     # Create minimal Gemfile so bundle exec works
     File.write("Gemfile", 'source "https://rubygems.org"')
@@ -71,7 +71,7 @@ class Gem::TestSmokeTest < Minitest::Test
     result = smoke.run(
       directory: @tmpdir,
       output_dir: output_dir,
-      env: { "BEFORE_PORT" => "4000" }
+      env: { "SERVER_PORT" => "4000" }
     )
 
     assert_match(/PORT=4000/, result.stdout)
