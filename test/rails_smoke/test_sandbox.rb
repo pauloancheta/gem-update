@@ -4,9 +4,9 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
+class RailsSmoke::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
   def setup
-    @tmpdir = Dir.mktmpdir("gem-update-sandbox-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-sandbox-test")
     @log_dir = File.join(@tmpdir, "logs")
     @config = build_config
   end
@@ -16,21 +16,21 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
   end
 
   def test_generates_unique_db_names
-    sandbox = Gem::Update::Sandbox.new("rails", config: @config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: @config, log_dir: @log_dir)
 
-    assert_match(/gem_update_rails_before_#{Process.pid}/, sandbox.before_url)
-    assert_match(/gem_update_rails_after_#{Process.pid}/, sandbox.after_url)
+    assert_match(/rails_smoke_rails_before_#{Process.pid}/, sandbox.before_url)
+    assert_match(/rails_smoke_rails_after_#{Process.pid}/, sandbox.after_url)
   end
 
   def test_builds_database_urls_from_base
-    sandbox = Gem::Update::Sandbox.new("rails", config: @config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: @config, log_dir: @log_dir)
 
-    assert_equal "postgresql://localhost/gem_update_rails_before_#{Process.pid}", sandbox.before_url
-    assert_equal "postgresql://localhost/gem_update_rails_after_#{Process.pid}", sandbox.after_url
+    assert_equal "postgresql://localhost/rails_smoke_rails_before_#{Process.pid}", sandbox.before_url
+    assert_equal "postgresql://localhost/rails_smoke_rails_after_#{Process.pid}", sandbox.after_url
   end
 
   def test_setup_runs_db_create_and_schema_load
-    sandbox = Gem::Update::Sandbox.new("rails", config: @config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: @config, log_dir: @log_dir)
     commands_run = []
 
     capture3_stub = lambda do |env, *cmd, **_opts|
@@ -53,7 +53,7 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
 
   def test_setup_runs_setup_task_when_configured
     config = build_config(setup_task: "db:seed")
-    sandbox = Gem::Update::Sandbox.new("rails", config: config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: config, log_dir: @log_dir)
     commands_run = []
 
     capture3_stub = lambda do |_env, *cmd, **_opts|
@@ -69,7 +69,7 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
 
   def test_setup_runs_setup_script_when_configured
     config = build_config(setup_script: "test/smoke/seed.rb")
-    sandbox = Gem::Update::Sandbox.new("rails", config: config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: config, log_dir: @log_dir)
     commands_run = []
 
     capture3_stub = lambda do |_env, *cmd, **_opts|
@@ -85,7 +85,7 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
 
   def test_setup_runs_both_task_and_script
     config = build_config(setup_task: "db:seed", setup_script: "test/smoke/seed.rb")
-    sandbox = Gem::Update::Sandbox.new("rails", config: config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: config, log_dir: @log_dir)
     commands_run = []
 
     capture3_stub = lambda do |_env, *cmd, **_opts|
@@ -103,7 +103,7 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
   end
 
   def test_cleanup_runs_db_drop
-    sandbox = Gem::Update::Sandbox.new("rails", config: @config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: @config, log_dir: @log_dir)
     commands_run = []
 
     capture3_stub = lambda do |env, *cmd, **_opts|
@@ -120,7 +120,7 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
   end
 
   def test_setup_raises_on_command_failure
-    sandbox = Gem::Update::Sandbox.new("rails", config: @config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: @config, log_dir: @log_dir)
 
     capture3_stub = lambda do |_env, *_cmd, **_opts|
       ["", "error output", stub_failure_status]
@@ -132,7 +132,7 @@ class Gem::TestSandbox < Minitest::Test # rubocop:disable Metrics/ClassLength
   end
 
   def test_setup_logs_output
-    sandbox = Gem::Update::Sandbox.new("rails", config: @config, log_dir: @log_dir)
+    sandbox = RailsSmoke::Sandbox.new("rails", config: @config, log_dir: @log_dir)
 
     capture3_stub = lambda do |_env, *_cmd, **_opts|
       ["stdout content", "stderr content", stub_success_status]

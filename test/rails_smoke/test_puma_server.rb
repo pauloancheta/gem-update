@@ -5,9 +5,9 @@ require "tmpdir"
 require "fileutils"
 require "socket"
 
-class Gem::TestPumaServer < Minitest::Test
+class RailsSmoke::TestPumaServer < Minitest::Test
   def setup
-    @tmpdir = Dir.mktmpdir("gem-update-puma-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-puma-test")
     @log_dir = File.join(@tmpdir, "logs")
   end
 
@@ -17,7 +17,7 @@ class Gem::TestPumaServer < Minitest::Test
   end
 
   def test_initializes_with_port_and_log_dir
-    server = Gem::Update::PumaServer.new(port: 9292, log_dir: @log_dir)
+    server = RailsSmoke::PumaServer.new(port: 9292, log_dir: @log_dir)
 
     assert_equal 9292, server.port
     assert_nil server.pid
@@ -25,21 +25,21 @@ class Gem::TestPumaServer < Minitest::Test
 
   def test_initializes_with_env_hash
     env = { "RAILS_ENV" => "test", "DATABASE_URL" => "postgresql://localhost/mydb" }
-    server = Gem::Update::PumaServer.new(port: 9292, log_dir: @log_dir, env: env)
+    server = RailsSmoke::PumaServer.new(port: 9292, log_dir: @log_dir, env: env)
 
     assert_equal 9292, server.port
     assert_nil server.pid
   end
 
   def test_stop_without_start_is_safe
-    server = Gem::Update::PumaServer.new(port: 9292, log_dir: @log_dir)
+    server = RailsSmoke::PumaServer.new(port: 9292, log_dir: @log_dir)
     server.stop
     assert_nil server.pid
   end
 
   def test_start_creates_log_directory
     port = find_available_port
-    @server = Gem::Update::PumaServer.new(port: port, log_dir: @log_dir)
+    @server = RailsSmoke::PumaServer.new(port: port, log_dir: @log_dir)
 
     write_rack_app
 
@@ -53,7 +53,7 @@ class Gem::TestPumaServer < Minitest::Test
 
   def test_start_and_stop_lifecycle
     port = find_available_port
-    @server = Gem::Update::PumaServer.new(port: port, log_dir: @log_dir)
+    @server = RailsSmoke::PumaServer.new(port: port, log_dir: @log_dir)
 
     write_rack_app
 
@@ -70,7 +70,7 @@ class Gem::TestPumaServer < Minitest::Test
   def test_start_with_env_hash
     port = find_available_port
     env = { "RAILS_ENV" => "test", "RACK_ENV" => "test" }
-    @server = Gem::Update::PumaServer.new(port: port, log_dir: @log_dir, env: env)
+    @server = RailsSmoke::PumaServer.new(port: port, log_dir: @log_dir, env: env)
 
     write_rack_app
 

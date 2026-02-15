@@ -4,10 +4,10 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestSmokeTest < Minitest::Test
+class RailsSmoke::TestSmokeTest < Minitest::Test
   def setup
     @original_dir = Dir.pwd
-    @tmpdir = Dir.mktmpdir("gem-update-smoke-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-smoke-test")
     Dir.chdir(@tmpdir)
   end
 
@@ -20,7 +20,7 @@ class Gem::TestSmokeTest < Minitest::Test
     FileUtils.mkdir_p("test/smoke")
     File.write("test/smoke/rails.rb", 'puts "hello"')
 
-    smoke = Gem::Update::SmokeTest.new("rails")
+    smoke = RailsSmoke::SmokeTest.new("rails")
     assert_equal ["test/smoke/rails.rb"], smoke.test_files
   end
 
@@ -29,7 +29,7 @@ class Gem::TestSmokeTest < Minitest::Test
     File.write("test/smoke/rails/boot.rb", 'puts "boot"')
     File.write("test/smoke/rails/routes.rb", 'puts "routes"')
 
-    smoke = Gem::Update::SmokeTest.new("rails")
+    smoke = RailsSmoke::SmokeTest.new("rails")
     files = smoke.test_files
     assert_includes files, "test/smoke/rails/boot.rb"
     assert_includes files, "test/smoke/rails/routes.rb"
@@ -40,18 +40,18 @@ class Gem::TestSmokeTest < Minitest::Test
     File.write("test/smoke/rails.rb", 'puts "main"')
     File.write("test/smoke/rails/extra.rb", 'puts "extra"')
 
-    smoke = Gem::Update::SmokeTest.new("rails")
+    smoke = RailsSmoke::SmokeTest.new("rails")
     assert_equal 2, smoke.test_files.size
   end
 
   def test_no_test_files
-    smoke = Gem::Update::SmokeTest.new("nonexistent")
+    smoke = RailsSmoke::SmokeTest.new("nonexistent")
     assert_empty smoke.test_files
   end
 
   def test_run_with_no_tests_returns_failure
     output_dir = File.join(@tmpdir, "output")
-    smoke = Gem::Update::SmokeTest.new("nonexistent")
+    smoke = RailsSmoke::SmokeTest.new("nonexistent")
     result = smoke.run(directory: @tmpdir, output_dir: output_dir)
 
     refute result.success
@@ -70,7 +70,7 @@ class Gem::TestSmokeTest < Minitest::Test
     system("bundle", "install", "--quiet", out: File::NULL, err: File::NULL)
 
     output_dir = File.join(@tmpdir, "output")
-    smoke = Gem::Update::SmokeTest.new("myapp")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
     result = smoke.run(directory: @tmpdir, output_dir: output_dir, server_port: 4000)
 
     assert_match(/PORT=4000/, result.stdout)
@@ -88,7 +88,7 @@ class Gem::TestSmokeTest < Minitest::Test
     system("bundle", "install", "--quiet", out: File::NULL, err: File::NULL)
 
     output_dir = File.join(@tmpdir, "output")
-    smoke = Gem::Update::SmokeTest.new("myapp")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
     smoke.run(directory: @tmpdir, output_dir: output_dir)
 
     assert File.exist?(File.join(output_dir, "smoke", "test.log"))
@@ -107,7 +107,7 @@ class Gem::TestSmokeTest < Minitest::Test
     system("bundle", "install", "--quiet", out: File::NULL, err: File::NULL)
 
     output_dir = File.join(@tmpdir, "output")
-    smoke = Gem::Update::SmokeTest.new("myapp")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
     result = smoke.run(directory: @tmpdir, output_dir: output_dir)
 
     assert_match(/has_port=false/, result.stdout)

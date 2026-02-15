@@ -1,17 +1,17 @@
-# gem-update
+# rails-smoke
 
 A/B smoke test gem upgrades using git worktrees. Creates a worktree with an updated gem, runs your smoke tests against both versions, and produces a comparison report with diffs and performance data.
 
 ## Installation
 
 ```sh
-gem install gem-update
+gem install rails-smoke
 ```
 
 Or add to your Gemfile:
 
 ```ruby
-gem "gem-update"
+gem "rails-smoke"
 ```
 
 ## Usage
@@ -20,19 +20,19 @@ gem "gem-update"
 
 ```sh
 # 1. Generate config file and smoke test directory
-gem-update init
+rails-smoke init
 
-# 2. Edit .gem_update.yml — set gem_name and other options
+# 2. Edit .rails_smoke.yml — set gem_name and other options
 # 3. Run from inside a git repository
-gem-update
+rails-smoke
 ```
 
 ### What it does
 
-gem-update supports two modes:
+rails-smoke supports two modes:
 
 **Gem mode** (default) — tests a gem upgrade:
-1. Reads `gem_name` from `.gem_update.yml`
+1. Reads `gem_name` from `.rails_smoke.yml`
 2. Creates a git worktree from the current HEAD
 3. Runs `bundle update <gem_name>` in the worktree
 4. Runs your smoke tests against the original and updated code
@@ -46,7 +46,7 @@ gem-update supports two modes:
 4. Generates a comparison report
 5. Cleans up both worktrees
 
-Mode is determined by which fields are present in `.gem_update.yml`: `gem_name` triggers gem mode, `before_branch`/`after_branch` triggers branch mode.
+Mode is determined by which fields are present in `.rails_smoke.yml`: `gem_name` triggers gem mode, `before_branch`/`after_branch` triggers branch mode.
 
 ### Writing smoke tests
 
@@ -81,7 +81,7 @@ For gems that affect a running Rails app (e.g. `rails`, `puma`, `rack`), you can
 
 ### Configuration
 
-Create a `.gem_update.yml` in your project root (or run `gem-update init`):
+Create a `.rails_smoke.yml` in your project root (or run `rails-smoke init`):
 
 **Gem mode** (test a gem upgrade):
 ```yaml
@@ -135,7 +135,7 @@ The sandbox lifecycle:
 5. **Run tests** — puma servers start with `DATABASE_URL` pointing to their throwaway DB
 6. **Cleanup** — `rails db:drop` removes both databases after tests complete (even on error)
 
-Database names are generated as `gem_update_<gem_name>_before_<pid>` and `gem_update_<gem_name>_after_<pid>`, so concurrent runs don't collide.
+Database names are generated as `rails_smoke_<gem_name>_before_<pid>` and `rails_smoke_<gem_name>_after_<pid>`, so concurrent runs don't collide.
 
 You must set `database_url_base` to your database server URL (e.g. `postgresql://localhost`) for sandbox mode to work. The generated `DATABASE_URL` is `<database_url_base>/<db_name>`.
 
@@ -220,8 +220,8 @@ The report will include a diff of `browser_errors.log` between the before and af
 
 ```
 ## Browser errors Diff
---- tmp/gem_updates/rails/before/smoke/browser_errors.log
-+++ tmp/gem_updates/rails/after/smoke/browser_errors.log
+--- tmp/rails_smoke/rails/before/smoke/browser_errors.log
++++ tmp/rails_smoke/rails/after/smoke/browser_errors.log
 @@ -0,0 +1 @@
 +Uncaught TypeError: Cannot read properties of undefined
 ```
@@ -233,10 +233,10 @@ The report will include a diff of `browser_errors.log` between the before and af
 bundle exec rake test
 
 # 2. Create config and smoke test directory
-gem-update init
+rails-smoke init
 
-# 3. Edit .gem_update.yml
-cat > .gem_update.yml << 'EOF'
+# 3. Edit .rails_smoke.yml
+cat > .rails_smoke.yml << 'EOF'
 gem_name: rails
 server: true
 sandbox: true
@@ -258,7 +258,7 @@ puts "OK"
 RUBY
 
 # 5. Run the upgrade test
-gem-update
+rails-smoke
 ```
 
 ### Example output
@@ -266,9 +266,9 @@ gem-update
 With servers enabled:
 
 ```
-$ gem-update
+$ rails-smoke
 
-== gem-update: rails ==
+== rails-smoke: rails ==
 
 1. Creating worktree...
 2. Running bundle update rails...
@@ -280,7 +280,7 @@ $ gem-update
 5. Generating report...
    Cleaning up sandbox databases...
 ============================================================
-gem-update report: rails
+rails-smoke report: rails
 ============================================================
 
 ## Timing
@@ -300,7 +300,7 @@ gem-update report: rails
 
 ## Gemfile.lock Diff
 --- /Users/you/myapp/Gemfile.lock
-+++ /Users/you/myapp/tmp/gem_updates/rails/worktree/Gemfile.lock
++++ /Users/you/myapp/tmp/rails_smoke/rails/worktree/Gemfile.lock
 @@ -120,7 +120,7 @@
      railties (= 7.1.3)
 -    rails (7.1.3)
@@ -308,15 +308,15 @@ gem-update report: rails
 -    actioncable (7.1.3)
 +    actioncable (7.2.0)
 
-Artifacts saved to: tmp/gem_updates/rails
+Artifacts saved to: tmp/rails_smoke/rails
 ```
 
 Without servers (default):
 
 ```
-$ gem-update
+$ rails-smoke
 
-== gem-update: nokogiri ==
+== rails-smoke: nokogiri ==
 
 1. Creating worktree...
 2. Running bundle update nokogiri...
@@ -324,7 +324,7 @@ $ gem-update
 4. Running smoke tests (after)...
 5. Generating report...
 ============================================================
-gem-update report: nokogiri
+rails-smoke report: nokogiri
 ============================================================
 
 ## Timing
@@ -344,12 +344,12 @@ gem-update report: nokogiri
 
 ## Gemfile.lock Diff
 --- /Users/you/myapp/Gemfile.lock
-+++ /Users/you/myapp/tmp/gem_updates/nokogiri/worktree/Gemfile.lock
++++ /Users/you/myapp/tmp/rails_smoke/nokogiri/worktree/Gemfile.lock
 @@ -85,7 +85,7 @@
 -    nokogiri (1.15.4)
 +    nokogiri (1.16.0)
 
-Artifacts saved to: tmp/gem_updates/nokogiri
+Artifacts saved to: tmp/rails_smoke/nokogiri
 ```
 
 When a regression is caught:
@@ -360,8 +360,8 @@ When a regression is caught:
   After:  FAILED
 
 ## Stdout Diff
---- tmp/gem_updates/rails/before/stdout.log
-+++ tmp/gem_updates/rails/after/stdout.log
+--- tmp/rails_smoke/rails/before/stdout.log
++++ tmp/rails_smoke/rails/after/stdout.log
 @@ -1,2 +1,2 @@
 -Status: 200
 +Status: 500
@@ -369,18 +369,18 @@ When a regression is caught:
 +Health check failed
 
 ## Stderr Diff
---- tmp/gem_updates/rails/before/stderr.log
-+++ tmp/gem_updates/rails/after/stderr.log
+--- tmp/rails_smoke/rails/before/stderr.log
++++ tmp/rails_smoke/rails/after/stderr.log
 @@ -0,0 +1 @@
 +Failed: 500
 ```
 
 ### Artifacts
 
-Results are saved to `tmp/gem_updates/<gem_name>/`:
+Results are saved to `tmp/rails_smoke/<gem_name>/`:
 
 ```
-tmp/gem_updates/rails/
+tmp/rails_smoke/rails/
 ├── before/
 │   ├── stdout.log
 │   ├── stderr.log
@@ -419,7 +419,7 @@ Puma servers are cleaned up automatically. You don't need to worry about orphane
 
 - **Normal exit or errors** — servers are always stopped via `begin/ensure`, even if smoke tests fail or raise exceptions.
 - **Ctrl-C / SIGTERM** — signal handlers catch interrupts and shut down both servers before exiting.
-- **Stale processes** — each server writes a `puma.pid` file to its log directory. If a previous run was killed ungracefully (e.g. `kill -9`), the next `gem-update` run detects the leftover pidfiles, terminates those processes, and removes the files before starting fresh.
+- **Stale processes** — each server writes a `puma.pid` file to its log directory. If a previous run was killed ungracefully (e.g. `kill -9`), the next `rails-smoke` run detects the leftover pidfiles, terminates those processes, and removes the files before starting fresh.
 - **Sandbox databases** — throwaway databases are dropped in the `ensure` block, so they're cleaned up even if tests fail.
 
 ## Development
@@ -428,7 +428,7 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/pauloancheta/gem-update. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/pauloancheta/gem-update/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/pauloancheta/rails-smoke. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/pauloancheta/rails-smoke/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 

@@ -4,9 +4,9 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
+class RailsSmoke::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def setup
-    @tmpdir = Dir.mktmpdir("gem-update-config-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-config-test")
   end
 
   def teardown
@@ -14,8 +14,8 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   end
 
   def test_raises_when_no_config_file
-    error = assert_raises(Gem::Update::Error) do
-      Gem::Update::Config.new(project_root: @tmpdir)
+    error = assert_raises(RailsSmoke::Error) do
+      RailsSmoke::Config.new(project_root: @tmpdir)
     end
 
     assert_match(/Config file not found/, error.message)
@@ -24,8 +24,8 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_raises_when_gem_name_missing
     write_config("server" => true)
 
-    error = assert_raises(Gem::Update::Error) do
-      Gem::Update::Config.new(project_root: @tmpdir)
+    error = assert_raises(RailsSmoke::Error) do
+      RailsSmoke::Config.new(project_root: @tmpdir)
     end
 
     assert_match(/gem_name is required/, error.message)
@@ -34,8 +34,8 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_raises_when_gem_name_empty
     write_config("gem_name" => "  ")
 
-    error = assert_raises(Gem::Update::Error) do
-      Gem::Update::Config.new(project_root: @tmpdir)
+    error = assert_raises(RailsSmoke::Error) do
+      RailsSmoke::Config.new(project_root: @tmpdir)
     end
 
     assert_match(/gem_name is required/, error.message)
@@ -44,7 +44,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_reads_gem_name
     write_config("gem_name" => "rails")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "rails", config.gem_name
   end
@@ -52,7 +52,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_defaults_with_minimal_config
     write_config("gem_name" => "rails")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     refute config.server?
     assert_equal 3000, config.before_port
@@ -79,7 +79,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
       "database_url_base" => "postgresql://localhost"
     )
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert config.server?
     assert_equal 5000, config.before_port
@@ -93,10 +93,10 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   end
 
   def test_empty_yaml_file_raises
-    File.write(File.join(@tmpdir, ".gem_update.yml"), "")
+    File.write(File.join(@tmpdir, ".rails_smoke.yml"), "")
 
-    error = assert_raises(Gem::Update::Error) do
-      Gem::Update::Config.new(project_root: @tmpdir)
+    error = assert_raises(RailsSmoke::Error) do
+      RailsSmoke::Config.new(project_root: @tmpdir)
     end
 
     assert_match(/gem_name is required/, error.message)
@@ -107,7 +107,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_gem_mode_detection
     write_config("gem_name" => "rails")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "gem", config.mode
   end
@@ -115,7 +115,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_gem_mode_identifier
     write_config("gem_name" => "rails")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "rails", config.identifier
   end
@@ -125,7 +125,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_branch_mode_with_both_branches
     write_config("before_branch" => "main", "after_branch" => "bump-rack-3.0")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "branch", config.mode
     assert_equal "main", config.before_branch
@@ -135,7 +135,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_branch_mode_identifier_is_after_branch
     write_config("before_branch" => "main", "after_branch" => "bump-rack-3.0")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "bump-rack-3.0", config.identifier
   end
@@ -143,7 +143,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_branch_mode_defaults_before_branch_to_main
     write_config("after_branch" => "bump-rack-3.0")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "branch", config.mode
     assert_equal "main", config.before_branch
@@ -153,7 +153,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_branch_mode_defaults_after_branch_to_current_branch
     write_config("before_branch" => "main")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_equal "branch", config.mode
     assert_equal "main", config.before_branch
@@ -165,7 +165,7 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_branch_mode_no_gem_name
     write_config("before_branch" => "main", "after_branch" => "bump-rack-3.0")
 
-    config = Gem::Update::Config.new(project_root: @tmpdir)
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
 
     assert_nil config.gem_name
   end
@@ -173,8 +173,8 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_raises_when_both_gem_name_and_branch_fields
     write_config("gem_name" => "rails", "after_branch" => "bump-rack-3.0")
 
-    error = assert_raises(Gem::Update::Error) do
-      Gem::Update::Config.new(project_root: @tmpdir)
+    error = assert_raises(RailsSmoke::Error) do
+      RailsSmoke::Config.new(project_root: @tmpdir)
     end
 
     assert_match(/Cannot set both gem_name and branch fields/, error.message)
@@ -183,8 +183,8 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def test_raises_when_gem_name_and_before_branch
     write_config("gem_name" => "rails", "before_branch" => "develop")
 
-    error = assert_raises(Gem::Update::Error) do
-      Gem::Update::Config.new(project_root: @tmpdir)
+    error = assert_raises(RailsSmoke::Error) do
+      RailsSmoke::Config.new(project_root: @tmpdir)
     end
 
     assert_match(/Cannot set both gem_name and branch fields/, error.message)
@@ -193,6 +193,6 @@ class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   private
 
   def write_config(hash)
-    File.write(File.join(@tmpdir, ".gem_update.yml"), YAML.dump(hash))
+    File.write(File.join(@tmpdir, ".rails_smoke.yml"), YAML.dump(hash))
   end
 end

@@ -4,9 +4,9 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestGemUpdater < Minitest::Test
+class RailsSmoke::TestGemUpdater < Minitest::Test
   def setup
-    @tmpdir = Dir.mktmpdir("gem-update-updater-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-updater-test")
     @output_dir = File.join(@tmpdir, "output")
     FileUtils.mkdir_p(@output_dir)
   end
@@ -24,7 +24,7 @@ class Gem::TestGemUpdater < Minitest::Test
       gem "pg"
     GEMFILE
 
-    updater = Gem::Update::GemUpdater.new("rails", worktree_path: worktree, output_dir: @output_dir, version: "7.2.0")
+    updater = RailsSmoke::GemUpdater.new("rails", worktree_path: worktree, output_dir: @output_dir, version: "7.2.0")
     updater.send(:pin_version)
 
     content = File.read(File.join(worktree, "Gemfile"))
@@ -40,7 +40,7 @@ class Gem::TestGemUpdater < Minitest::Test
       gem "pg"
     GEMFILE
 
-    updater = Gem::Update::GemUpdater.new("sidekiq", worktree_path: worktree, output_dir: @output_dir, version: "7.0.0")
+    updater = RailsSmoke::GemUpdater.new("sidekiq", worktree_path: worktree, output_dir: @output_dir, version: "7.0.0")
     updater.send(:pin_version)
 
     content = File.read(File.join(worktree, "Gemfile"))
@@ -56,7 +56,7 @@ class Gem::TestGemUpdater < Minitest::Test
     GEMFILE
     File.write(File.join(worktree, "Gemfile"), original)
 
-    Gem::Update::GemUpdater.new("rails", worktree_path: worktree, output_dir: @output_dir)
+    RailsSmoke::GemUpdater.new("rails", worktree_path: worktree, output_dir: @output_dir)
 
     content = File.read(File.join(worktree, "Gemfile"))
     assert_equal original, content

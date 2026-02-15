@@ -4,9 +4,9 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestInitializer < Minitest::Test
+class RailsSmoke::TestInitializer < Minitest::Test
   def setup
-    @tmpdir = Dir.mktmpdir("gem-update-init-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-init-test")
   end
 
   def teardown
@@ -14,13 +14,13 @@ class Gem::TestInitializer < Minitest::Test
   end
 
   def test_creates_config_file
-    initializer = Gem::Update::Initializer.new(project_root: @tmpdir)
+    initializer = RailsSmoke::Initializer.new(project_root: @tmpdir)
 
-    assert_output(/Created .gem_update.yml/) do
+    assert_output(/Created .rails_smoke.yml/) do
       initializer.run
     end
 
-    config_path = File.join(@tmpdir, ".gem_update.yml")
+    config_path = File.join(@tmpdir, ".rails_smoke.yml")
     assert File.exist?(config_path)
 
     content = File.read(config_path)
@@ -28,7 +28,7 @@ class Gem::TestInitializer < Minitest::Test
   end
 
   def test_creates_smoke_directory
-    initializer = Gem::Update::Initializer.new(project_root: @tmpdir)
+    initializer = RailsSmoke::Initializer.new(project_root: @tmpdir)
 
     assert_output(%r{Created test/smoke/}) do
       initializer.run
@@ -38,21 +38,21 @@ class Gem::TestInitializer < Minitest::Test
   end
 
   def test_skips_existing_config
-    File.write(File.join(@tmpdir, ".gem_update.yml"), "gem_name: rails\n")
+    File.write(File.join(@tmpdir, ".rails_smoke.yml"), "gem_name: rails\n")
 
-    initializer = Gem::Update::Initializer.new(project_root: @tmpdir)
+    initializer = RailsSmoke::Initializer.new(project_root: @tmpdir)
 
     assert_output(/already exists/) do
       initializer.run
     end
 
-    assert_equal "gem_name: rails\n", File.read(File.join(@tmpdir, ".gem_update.yml"))
+    assert_equal "gem_name: rails\n", File.read(File.join(@tmpdir, ".rails_smoke.yml"))
   end
 
   def test_skips_existing_smoke_dir
     FileUtils.mkdir_p(File.join(@tmpdir, "test", "smoke"))
 
-    initializer = Gem::Update::Initializer.new(project_root: @tmpdir)
+    initializer = RailsSmoke::Initializer.new(project_root: @tmpdir)
 
     assert_output(%r{test/smoke/ already exists}) do
       initializer.run

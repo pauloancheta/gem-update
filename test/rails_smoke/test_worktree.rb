@@ -4,10 +4,10 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestWorktree < Minitest::Test
+class RailsSmoke::TestWorktree < Minitest::Test
   def setup
     @original_dir = Dir.pwd
-    @tmpdir = Dir.mktmpdir("gem-update-test")
+    @tmpdir = Dir.mktmpdir("rails-smoke-test")
     Dir.chdir(@tmpdir)
     system("git", "init", out: File::NULL, err: File::NULL)
     system("git", "config", "user.email", "test@test.com", out: File::NULL, err: File::NULL)
@@ -24,7 +24,7 @@ class Gem::TestWorktree < Minitest::Test
 
   def test_create_and_remove_worktree
     base_dir = File.join(@tmpdir, "output")
-    worktree = Gem::Update::Worktree.new("test-gem", base_dir: base_dir)
+    worktree = RailsSmoke::Worktree.new("test-gem", base_dir: base_dir)
 
     assert worktree.create
     assert File.directory?(worktree.path)
@@ -35,8 +35,8 @@ class Gem::TestWorktree < Minitest::Test
   end
 
   def test_path
-    worktree = Gem::Update::Worktree.new("rails", base_dir: "/tmp/gem_updates/rails")
-    assert_equal "/tmp/gem_updates/rails/worktree", worktree.path
+    worktree = RailsSmoke::Worktree.new("rails", base_dir: "/tmp/rails_smoke/rails")
+    assert_equal "/tmp/rails_smoke/rails/worktree", worktree.path
   end
 
   def test_create_with_ref
@@ -48,7 +48,7 @@ class Gem::TestWorktree < Minitest::Test
     system("git", "checkout", "-", out: File::NULL, err: File::NULL)
 
     base_dir = File.join(@tmpdir, "output")
-    worktree = Gem::Update::Worktree.new("test-gem", base_dir: base_dir)
+    worktree = RailsSmoke::Worktree.new("test-gem", base_dir: base_dir)
 
     assert worktree.create(ref: "test-branch")
     assert File.directory?(worktree.path)
@@ -59,7 +59,7 @@ class Gem::TestWorktree < Minitest::Test
 
   def test_custom_suffix
     base_dir = File.join(@tmpdir, "output")
-    worktree = Gem::Update::Worktree.new("test-gem", base_dir: base_dir, suffix: "before_worktree")
+    worktree = RailsSmoke::Worktree.new("test-gem", base_dir: base_dir, suffix: "before_worktree")
 
     assert_equal File.join(base_dir, "before_worktree"), worktree.path
     assert worktree.create

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    gem-update (0.1.0)
+    rails-smoke (0.1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -44,8 +44,8 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  gem-update!
   minitest (~> 5.0)
+  rails-smoke!
   rake (~> 13.0)
   rubocop (~> 1.21)
 

@@ -2,8 +2,8 @@
 
 require "test_helper"
 
-class Gem::TestUpdate < Minitest::Test
+class RailsSmoke::TestUpdate < Minitest::Test
   def test_that_it_has_a_version_number
-    refute_nil ::Gem::Update::VERSION
+    refute_nil ::RailsSmoke::VERSION
   end
 end

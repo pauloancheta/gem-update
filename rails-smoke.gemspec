@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-require_relative "lib/gem/update/version"
+require_relative "lib/rails_smoke/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "gem-update"
-  spec.version = Gem::Update::VERSION
+  spec.name = "rails-smoke"
+  spec.version = RailsSmoke::VERSION
   spec.authors = ["Paulo Ancheta"]
   spec.email = ["paulo.ancheta@gmail.com"]
 
   spec.summary = "A/B smoke test gem upgrades using git worktrees"
   spec.description = "Creates a git worktree with an updated gem, runs smoke tests in both " \
                      "environments, and produces a comparison report with diffs and performance data."
-  spec.homepage = "https://github.com/pauloancheta/gem-update"
+  spec.homepage = "https://github.com/pauloancheta/rails-smoke"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 2.6.0"
 
