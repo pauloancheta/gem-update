@@ -23,6 +23,14 @@ class Gem::TestPumaServer < Minitest::Test
     assert_nil server.pid
   end
 
+  def test_initializes_with_env_hash
+    env = { "RAILS_ENV" => "test", "DATABASE_URL" => "postgresql://localhost/mydb" }
+    server = Gem::Update::PumaServer.new(port: 9292, log_dir: @log_dir, env: env)
+
+    assert_equal 9292, server.port
+    assert_nil server.pid
+  end
+
   def test_stop_without_start_is_safe
     server = Gem::Update::PumaServer.new(port: 9292, log_dir: @log_dir)
     server.stop
@@ -57,6 +65,21 @@ class Gem::TestPumaServer < Minitest::Test
 
     @server.stop
     assert_nil @server.pid
+  end
+
+  def test_start_with_env_hash
+    port = find_available_port
+    env = { "RAILS_ENV" => "test", "RACK_ENV" => "test" }
+    @server = Gem::Update::PumaServer.new(port: port, log_dir: @log_dir, env: env)
+
+    write_rack_app
+
+    @server.start(directory: @tmpdir)
+
+    assert @server.pid
+    assert process_alive?(@server.pid)
+  ensure
+    @server&.stop
   end
 
   private

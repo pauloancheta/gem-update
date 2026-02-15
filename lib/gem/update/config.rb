@@ -8,7 +8,12 @@ module Gem
       DEFAULTS = {
         "server" => false,
         "before_port" => 3000,
-        "after_port" => 3001
+        "after_port" => 3001,
+        "rails_env" => "test",
+        "sandbox" => true,
+        "setup_task" => nil,
+        "setup_script" => nil,
+        "database_url_base" => nil
       }.freeze
 
       def initialize(gem_name, project_root: Dir.pwd)
@@ -30,6 +35,26 @@ module Gem
 
       def version
         @settings["version"]
+      end
+
+      def rails_env
+        @settings["rails_env"]
+      end
+
+      def sandbox?
+        @settings["sandbox"]
+      end
+
+      def setup_task
+        @settings["setup_task"]
+      end
+
+      def setup_script
+        @settings["setup_script"]
+      end
+
+      def database_url_base
+        @settings["database_url_base"]
       end
 
       private

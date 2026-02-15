@@ -74,6 +74,10 @@ defaults:
 rails:
   server: true
   version: "7.2.0"
+  sandbox: true
+  database_url_base: "postgresql://localhost"
+  setup_task: "db:seed"
+  setup_script: "test/smoke/seed.rb"
   before_port: 4000
   after_port: 4001
 ```
@@ -87,18 +91,42 @@ rails:
 | `version` | *(latest)* | Target version to update to (e.g. `"7.2.0"`) |
 | `before_port` | `3000` | Port for the original (pre-update) server |
 | `after_port` | `3001` | Port for the updated (post-update) server |
+| `rails_env` | `test` | `RAILS_ENV` for both servers |
+| `sandbox` | `true` | Auto-create throwaway databases for each server |
+| `database_url_base` | `nil` | Base URL for throwaway DBs (e.g. `postgresql://localhost`) |
+| `setup_task` | `nil` | Rake task to run after schema load (e.g. `db:seed`, `db:fixtures:load`) |
+| `setup_script` | `nil` | Ruby script to run after setup_task (e.g. `test/smoke/seed.rb`) |
 
-When `version` is set, the Gemfile in the worktree is pinned to that exact version before running `bundle update`. The before server always runs the current version while the after server runs the specified version. Without `version`, `bundle update` resolves to the latest allowed by your Gemfile constraints.
+### Sandbox mode
+
+When `sandbox: true` (the default), both servers run in the **same** `RAILS_ENV` (configurable via `rails_env`, defaults to `test`). Each server gets its own throwaway database via `DATABASE_URL`, so they don't interfere with each other.
+
+The sandbox lifecycle:
+
+1. **Create** — `rails db:create` with a unique `DATABASE_URL` for each server
+2. **Schema load** — `rails db:schema:load` to set up the schema
+3. **Setup task** — optional rake task (e.g. `db:seed`) to populate data
+4. **Setup script** — optional Ruby script for custom seeding
+5. **Run tests** — puma servers start with `DATABASE_URL` pointing to their throwaway DB
+6. **Cleanup** — `rails db:drop` removes both databases after tests complete (even on error)
+
+Database names are generated as `gem_update_<gem_name>_before_<pid>` and `gem_update_<gem_name>_after_<pid>`, so concurrent runs don't collide.
+
+You must set `database_url_base` to your database server URL (e.g. `postgresql://localhost`) for sandbox mode to work. The generated `DATABASE_URL` is `<database_url_base>/<db_name>`.
+
+To disable sandbox mode and manage databases yourself, set `sandbox: false`. In this case, only `RAILS_ENV` and `RACK_ENV` are set on the servers.
 
 ### How it works
 
 When `server: true` is set for a gem:
 
-1. A puma server starts on the original code at `before_port`
-2. A puma server starts on the worktree (updated code) at `after_port`
-3. Smoke tests run **in parallel** — each receives `SERVER_PORT` as an environment variable pointing to its respective server
-4. Results are logged separately and diffed after both complete
-5. Servers are shut down automatically (even on error)
+1. If `sandbox: true`, throwaway databases are created and seeded for each server
+2. A puma server starts on the original code at `before_port`
+3. A puma server starts on the worktree (updated code) at `after_port`
+4. Smoke tests run **in parallel** — each receives `SERVER_PORT` as an environment variable pointing to its respective server
+5. Results are logged separately and diffed after both complete
+6. Servers are shut down automatically (even on error)
+7. If `sandbox: true`, throwaway databases are dropped
 
 ### Smoke test config file
 
@@ -186,6 +214,9 @@ defaults:
 
 rails:
   server: true
+  sandbox: true
+  database_url_base: "postgresql://localhost"
+  setup_task: "db:seed"
   before_port: 3000
   after_port: 3001
 EOF
@@ -217,11 +248,13 @@ $ gem-update rails
 
 1. Creating worktree...
 2. Running bundle update rails...
+   Setting up sandbox databases...
    Starting puma servers...
-   Before server running on port 3000
-   After server running on port 3001
+   Before server running on port 3000 (test)
+   After server running on port 3001 (test)
 3. Running smoke tests (before & after in parallel)...
 5. Generating report...
+   Cleaning up sandbox databases...
 ============================================================
 gem-update report: rails
 ============================================================
@@ -344,6 +377,13 @@ tmp/gem_updates/rails/
 │   ├── puma_stdout.log
 │   ├── puma_stderr.log
 │   └── puma.pid
+├── sandbox/                        # when sandbox: true
+│   ├── db_create_stdout.log
+│   ├── db_create_stderr.log
+│   ├── db_schema_load_stdout.log
+│   ├── db_schema_load_stderr.log
+│   ├── db_drop_stdout.log
+│   └── db_drop_stderr.log
 ├── bundle_update.log
 ├── gemfile_lock.diff
 └── report.txt
@@ -356,6 +396,7 @@ Puma servers are cleaned up automatically. You don't need to worry about orphane
 - **Normal exit or errors** — servers are always stopped via `begin/ensure`, even if smoke tests fail or raise exceptions.
 - **Ctrl-C / SIGTERM** — signal handlers catch interrupts and shut down both servers before exiting.
 - **Stale processes** — each server writes a `puma.pid` file to its log directory. If a previous run was killed ungracefully (e.g. `kill -9`), the next `gem-update` run detects the leftover pidfiles, terminates those processes, and removes the files before starting fresh.
+- **Sandbox databases** — throwaway databases are dropped in the `ensure` block, so they're cleaned up even if tests fail.
 
 ## Development
 

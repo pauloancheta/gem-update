@@ -86,6 +86,76 @@ class Gem::TestConfig < Minitest::Test
     assert_nil config.version
   end
 
+  def test_rails_env_defaults_to_test
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_equal "test", config.rails_env
+  end
+
+  def test_rails_env_override
+    write_config("rails" => { "rails_env" => "staging" })
+
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_equal "staging", config.rails_env
+  end
+
+  def test_sandbox_defaults_to_true
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert config.sandbox?
+  end
+
+  def test_sandbox_can_be_disabled
+    write_config("rails" => { "sandbox" => false })
+
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    refute config.sandbox?
+  end
+
+  def test_setup_task_defaults_to_nil
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_nil config.setup_task
+  end
+
+  def test_setup_task_from_config
+    write_config("rails" => { "setup_task" => "db:seed" })
+
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_equal "db:seed", config.setup_task
+  end
+
+  def test_setup_script_defaults_to_nil
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_nil config.setup_script
+  end
+
+  def test_setup_script_from_config
+    write_config("rails" => { "setup_script" => "test/smoke/seed.rb" })
+
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_equal "test/smoke/seed.rb", config.setup_script
+  end
+
+  def test_database_url_base_defaults_to_nil
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_nil config.database_url_base
+  end
+
+  def test_database_url_base_from_config
+    write_config("defaults" => { "database_url_base" => "postgresql://localhost" })
+
+    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+
+    assert_equal "postgresql://localhost", config.database_url_base
+  end
+
   def test_empty_yaml_file
     File.write(File.join(@tmpdir, ".gem_update.yml"), "")
 

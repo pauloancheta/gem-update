@@ -25,9 +25,10 @@ module Gem
         end
       end
 
-      def initialize(port:, log_dir:)
+      def initialize(port:, log_dir:, env: {})
         @port = port
         @log_dir = log_dir
+        @env = env
         @pid = nil
       end
 
@@ -37,9 +38,12 @@ module Gem
         stdout_log = File.join(@log_dir, "puma_stdout.log")
         stderr_log = File.join(@log_dir, "puma_stderr.log")
 
+        rails_env = @env.fetch("RAILS_ENV", "development")
+
         @pid = Bundler.with_unbundled_env do
           Process.spawn(
-            "bundle", "exec", "puma", "-p", @port.to_s,
+            @env,
+            "bundle", "exec", "puma", "-p", @port.to_s, "-e", rails_env,
             chdir: directory,
             out: stdout_log,
             err: stderr_log

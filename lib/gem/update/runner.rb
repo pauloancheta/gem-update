@@ -47,8 +47,25 @@ module Gem
       private
 
       def run_with_servers(worktree)
-        before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@output_dir, "before"))
-        after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@output_dir, "after"))
+        sandbox = nil
+        before_env = { "RAILS_ENV" => @config.rails_env, "RACK_ENV" => @config.rails_env }
+        after_env = { "RAILS_ENV" => @config.rails_env, "RACK_ENV" => @config.rails_env }
+
+        if @config.sandbox?
+          sandbox = Sandbox.new(@gem_name, config: @config, log_dir: File.join(@output_dir, "sandbox"))
+
+          puts "   Setting up sandbox databases..."
+          sandbox.setup(directory: Dir.pwd, database_url: sandbox.before_url)
+          sandbox.setup(directory: worktree.path, database_url: sandbox.after_url)
+
+          before_env["DATABASE_URL"] = sandbox.before_url
+          after_env["DATABASE_URL"] = sandbox.after_url
+        end
+
+        before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@output_dir, "before"),
+                                       env: before_env)
+        after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@output_dir, "after"),
+                                      env: after_env)
         servers = [before_server, after_server]
 
         previous_int = Signal.trap("INT") do
@@ -63,10 +80,10 @@ module Gem
         begin
           puts "   Starting puma servers..."
           before_server.start(directory: Dir.pwd)
-          puts "   Before server running on port #{@config.before_port}"
+          puts "   Before server running on port #{@config.before_port} (#{@config.rails_env})"
 
           after_server.start(directory: worktree.path)
-          puts "   After server running on port #{@config.after_port}"
+          puts "   After server running on port #{@config.after_port} (#{@config.rails_env})"
 
           puts "3. Running smoke tests (before & after in parallel)..."
           smoke = SmokeTest.new(@gem_name)
@@ -92,6 +109,12 @@ module Gem
           shutdown_servers(servers)
           Signal.trap("INT", previous_int || "DEFAULT")
           Signal.trap("TERM", previous_term || "DEFAULT")
+
+          if sandbox
+            puts "   Cleaning up sandbox databases..."
+            sandbox.cleanup(directory: Dir.pwd, database_url: sandbox.before_url)
+            sandbox.cleanup(directory: worktree.path, database_url: sandbox.after_url)
+          end
         end
       end
 
