@@ -4,7 +4,7 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class Gem::TestConfig < Minitest::Test
+class Gem::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLength
   def setup
     @tmpdir = Dir.mktmpdir("gem-update-config-test")
   end
@@ -100,6 +100,94 @@ class Gem::TestConfig < Minitest::Test
     end
 
     assert_match(/gem_name is required/, error.message)
+  end
+
+  # --- Gem mode ---
+
+  def test_gem_mode_detection
+    write_config("gem_name" => "rails")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "gem", config.mode
+  end
+
+  def test_gem_mode_identifier
+    write_config("gem_name" => "rails")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "rails", config.identifier
+  end
+
+  # --- Branch mode ---
+
+  def test_branch_mode_with_both_branches
+    write_config("before_branch" => "main", "after_branch" => "bump-rack-3.0")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "branch", config.mode
+    assert_equal "main", config.before_branch
+    assert_equal "bump-rack-3.0", config.after_branch
+  end
+
+  def test_branch_mode_identifier_is_after_branch
+    write_config("before_branch" => "main", "after_branch" => "bump-rack-3.0")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "bump-rack-3.0", config.identifier
+  end
+
+  def test_branch_mode_defaults_before_branch_to_main
+    write_config("after_branch" => "bump-rack-3.0")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "branch", config.mode
+    assert_equal "main", config.before_branch
+    assert_equal "bump-rack-3.0", config.after_branch
+  end
+
+  def test_branch_mode_defaults_after_branch_to_current_branch
+    write_config("before_branch" => "main")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "branch", config.mode
+    assert_equal "main", config.before_branch
+    # after_branch defaults to current git branch
+    refute_nil config.after_branch
+    refute_empty config.after_branch
+  end
+
+  def test_branch_mode_no_gem_name
+    write_config("before_branch" => "main", "after_branch" => "bump-rack-3.0")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_nil config.gem_name
+  end
+
+  def test_raises_when_both_gem_name_and_branch_fields
+    write_config("gem_name" => "rails", "after_branch" => "bump-rack-3.0")
+
+    error = assert_raises(Gem::Update::Error) do
+      Gem::Update::Config.new(project_root: @tmpdir)
+    end
+
+    assert_match(/Cannot set both gem_name and branch fields/, error.message)
+  end
+
+  def test_raises_when_gem_name_and_before_branch
+    write_config("gem_name" => "rails", "before_branch" => "develop")
+
+    error = assert_raises(Gem::Update::Error) do
+      Gem::Update::Config.new(project_root: @tmpdir)
+    end
+
+    assert_match(/Cannot set both gem_name and branch fields/, error.message)
   end
 
   private

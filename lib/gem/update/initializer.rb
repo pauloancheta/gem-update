@@ -9,14 +9,23 @@ module Gem
         # gem-update configuration
         # See: https://github.com/pauloancheta/gem-update
 
+        # === Gem mode (default) ===
         # Required: the gem to test upgrading
         gem_name: CHANGE_ME
 
-        # Start puma servers for A/B HTTP testing
-        # server: false
-
         # Target version (omit for latest)
         # version: "7.2.0"
+
+        # === Branch mode ===
+        # Compare two branches directly instead of running bundle update.
+        # Set before_branch/after_branch instead of gem_name.
+        # before_branch: main
+        # after_branch: bump-rack-3.0
+
+        # === Shared options ===
+
+        # Start puma servers for A/B HTTP testing
+        # server: false
 
         # Use throwaway sandbox databases
         # sandbox: true

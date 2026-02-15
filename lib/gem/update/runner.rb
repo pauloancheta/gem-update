@@ -1,32 +1,43 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "open3"
 
 module Gem
   module Update
     class Runner # rubocop:disable Metrics/ClassLength
       def initialize(config:)
         @config = config
-        @gem_name = config.gem_name
-        @output_dir = File.join("tmp", "gem_updates", @gem_name)
+        @identifier = config.identifier
+        @output_dir = File.join("tmp", "gem_updates", @identifier)
       end
 
       def run
         setup_output_dir
 
-        puts "== gem-update: #{@gem_name} =="
+        puts "== gem-update: #{@identifier} =="
         puts ""
 
+        if @config.mode == "branch"
+          run_branch_mode
+        else
+          run_gem_mode
+        end
+      end
+
+      private
+
+      def run_gem_mode
         puts "1. Creating worktree..."
-        worktree = Worktree.new(@gem_name, base_dir: @output_dir)
+        worktree = Worktree.new(@identifier, base_dir: @output_dir)
         worktree.create
 
         version_label = @config.version ? " to #{@config.version}" : ""
-        puts "2. Running bundle update #{@gem_name}#{version_label}..."
-        updater = GemUpdater.new(@gem_name, worktree_path: worktree.path, output_dir: @output_dir,
-                                            version: @config.version)
+        puts "2. Running bundle update #{@identifier}#{version_label}..."
+        updater = GemUpdater.new(@identifier, worktree_path: worktree.path, output_dir: @output_dir,
+                                              version: @config.version)
         unless updater.run
-          warn "bundle update #{@gem_name} failed. Check #{@output_dir}/bundle_update.log"
+          warn "bundle update #{@identifier} failed. Check #{@output_dir}/bundle_update.log"
           cleanup(worktree)
           exit 1
         end
@@ -38,13 +49,117 @@ module Gem
                                       end
 
         puts "5. Generating report..."
-        report = Report.new(@gem_name, before: before_result, after: after_result, output_dir: @output_dir)
+        report = Report.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
         report.generate
 
         cleanup(worktree)
       end
 
-      private
+      def run_branch_mode
+        puts "1. Creating worktrees..."
+        before_worktree = Worktree.new(@identifier, base_dir: @output_dir, suffix: "before_worktree")
+        after_worktree = Worktree.new(@identifier, base_dir: @output_dir, suffix: "after_worktree")
+        before_worktree.create(ref: @config.before_branch)
+        after_worktree.create(ref: @config.after_branch)
+
+        puts "2. Generating Gemfile.lock diff..."
+        generate_lock_diff(before_worktree.path, after_worktree.path)
+
+        before_result, after_result = if @config.server?
+                                        run_branch_with_servers(before_worktree, after_worktree)
+                                      else
+                                        run_branch_without_servers(before_worktree, after_worktree)
+                                      end
+
+        puts "5. Generating report..."
+        report = Report.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
+        report.generate
+
+        cleanup(before_worktree, after_worktree)
+      end
+
+      def run_branch_with_servers(before_worktree, after_worktree)
+        sandbox, before_env, after_env = setup_branch_sandbox(before_worktree, after_worktree)
+
+        before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@output_dir, "before"),
+                                       env: before_env)
+        after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@output_dir, "after"),
+                                      env: after_env)
+        servers = [before_server, after_server]
+
+        with_signal_handlers(servers) do
+          puts "   Starting puma servers..."
+          before_server.start(directory: before_worktree.path)
+          puts "   Before server running on port #{@config.before_port} (#{@config.rails_env})"
+          after_server.start(directory: after_worktree.path)
+          puts "   After server running on port #{@config.after_port} (#{@config.rails_env})"
+
+          run_branch_smoke_tests_parallel(before_worktree, after_worktree)
+        ensure
+          shutdown_servers(servers)
+          cleanup_branch_sandbox(sandbox, before_worktree, after_worktree)
+        end
+      end
+
+      def setup_branch_sandbox(before_worktree, after_worktree)
+        before_env = { "RAILS_ENV" => @config.rails_env, "RACK_ENV" => @config.rails_env }
+        after_env = { "RAILS_ENV" => @config.rails_env, "RACK_ENV" => @config.rails_env }
+        sandbox = nil
+
+        if @config.sandbox?
+          sandbox = Sandbox.new(@identifier, config: @config, log_dir: File.join(@output_dir, "sandbox"))
+          puts "   Setting up sandbox databases..."
+          sandbox.setup(directory: before_worktree.path, database_url: sandbox.before_url)
+          sandbox.setup(directory: after_worktree.path, database_url: sandbox.after_url)
+          before_env["DATABASE_URL"] = sandbox.before_url
+          after_env["DATABASE_URL"] = sandbox.after_url
+        end
+
+        [sandbox, before_env, after_env]
+      end
+
+      def run_branch_smoke_tests_parallel(before_worktree, after_worktree)
+        puts "3. Running smoke tests (before & after in parallel)..."
+        smoke = SmokeTest.new(@identifier)
+
+        before_thread = Thread.new do
+          smoke.run(directory: before_worktree.path, output_dir: File.join(@output_dir, "before"),
+                    server_port: @config.before_port)
+        end
+        after_thread = Thread.new do
+          smoke.run(directory: after_worktree.path, output_dir: File.join(@output_dir, "after"),
+                    server_port: @config.after_port)
+        end
+
+        [before_thread.value, after_thread.value]
+      end
+
+      def cleanup_branch_sandbox(sandbox, before_worktree, after_worktree)
+        return unless sandbox
+
+        puts "   Cleaning up sandbox databases..."
+        sandbox.cleanup(directory: before_worktree.path, database_url: sandbox.before_url)
+        sandbox.cleanup(directory: after_worktree.path, database_url: sandbox.after_url)
+      end
+
+      def run_branch_without_servers(before_worktree, after_worktree)
+        puts "3. Running smoke tests (before)..."
+        smoke = SmokeTest.new(@identifier)
+        before_result = smoke.run(directory: before_worktree.path, output_dir: File.join(@output_dir, "before"))
+
+        puts "4. Running smoke tests (after)..."
+        after_result = smoke.run(directory: after_worktree.path, output_dir: File.join(@output_dir, "after"))
+
+        [before_result, after_result]
+      end
+
+      def generate_lock_diff(before_dir, after_dir)
+        before_lock = File.join(before_dir, "Gemfile.lock")
+        after_lock = File.join(after_dir, "Gemfile.lock")
+
+        diff, = Open3.capture3("diff", "-u", before_lock, after_lock)
+        File.write(File.join(@output_dir, "gemfile_lock.diff"), diff)
+      end
 
       def run_with_servers(worktree)
         sandbox, before_env, after_env = setup_sandbox(worktree)
@@ -70,7 +185,7 @@ module Gem
         sandbox = nil
 
         if @config.sandbox?
-          sandbox = Sandbox.new(@gem_name, config: @config, log_dir: File.join(@output_dir, "sandbox"))
+          sandbox = Sandbox.new(@identifier, config: @config, log_dir: File.join(@output_dir, "sandbox"))
           puts "   Setting up sandbox databases..."
           sandbox.setup(directory: Dir.pwd, database_url: sandbox.before_url)
           sandbox.setup(directory: worktree.path, database_url: sandbox.after_url)
@@ -91,7 +206,7 @@ module Gem
 
       def run_smoke_tests_parallel(worktree)
         puts "3. Running smoke tests (before & after in parallel)..."
-        smoke = SmokeTest.new(@gem_name)
+        smoke = SmokeTest.new(@identifier)
 
         before_thread = Thread.new do
           smoke.run(directory: Dir.pwd, output_dir: File.join(@output_dir, "before"),
@@ -130,7 +245,7 @@ module Gem
 
       def run_without_servers(worktree)
         puts "3. Running smoke tests (before)..."
-        smoke = SmokeTest.new(@gem_name)
+        smoke = SmokeTest.new(@identifier)
         before_result = smoke.run(directory: Dir.pwd, output_dir: File.join(@output_dir, "before"))
 
         puts "4. Running smoke tests (after)..."
@@ -149,8 +264,8 @@ module Gem
         servers.each(&:stop)
       end
 
-      def cleanup(worktree)
-        worktree.remove
+      def cleanup(*worktrees)
+        worktrees.each(&:remove)
       end
     end
   end

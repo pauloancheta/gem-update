@@ -38,4 +38,33 @@ class Gem::TestWorktree < Minitest::Test
     worktree = Gem::Update::Worktree.new("rails", base_dir: "/tmp/gem_updates/rails")
     assert_equal "/tmp/gem_updates/rails/worktree", worktree.path
   end
+
+  def test_create_with_ref
+    # Create a branch with different content
+    system("git", "checkout", "-b", "test-branch", out: File::NULL, err: File::NULL)
+    File.write("branch_file.txt", "branch content")
+    system("git", "add", ".", out: File::NULL, err: File::NULL)
+    system("git", "commit", "-m", "branch commit", out: File::NULL, err: File::NULL)
+    system("git", "checkout", "-", out: File::NULL, err: File::NULL)
+
+    base_dir = File.join(@tmpdir, "output")
+    worktree = Gem::Update::Worktree.new("test-gem", base_dir: base_dir)
+
+    assert worktree.create(ref: "test-branch")
+    assert File.directory?(worktree.path)
+    assert File.exist?(File.join(worktree.path, "branch_file.txt"))
+
+    worktree.remove
+  end
+
+  def test_custom_suffix
+    base_dir = File.join(@tmpdir, "output")
+    worktree = Gem::Update::Worktree.new("test-gem", base_dir: base_dir, suffix: "before_worktree")
+
+    assert_equal File.join(base_dir, "before_worktree"), worktree.path
+    assert worktree.create
+    assert File.directory?(worktree.path)
+
+    worktree.remove
+  end
 end

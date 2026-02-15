@@ -29,12 +29,24 @@ gem-update
 
 ### What it does
 
+gem-update supports two modes:
+
+**Gem mode** (default) — tests a gem upgrade:
 1. Reads `gem_name` from `.gem_update.yml`
 2. Creates a git worktree from the current HEAD
 3. Runs `bundle update <gem_name>` in the worktree
 4. Runs your smoke tests against the original and updated code
 5. Generates a comparison report (timing, exit status, stdout/stderr diffs, Gemfile.lock diff)
 6. Cleans up the worktree
+
+**Branch mode** — compares two git branches directly:
+1. Creates worktrees for both `before_branch` and `after_branch`
+2. Generates a Gemfile.lock diff between the two branches
+3. Runs your smoke tests against both worktrees
+4. Generates a comparison report
+5. Cleans up both worktrees
+
+Mode is determined by which fields are present in `.gem_update.yml`: `gem_name` triggers gem mode, `before_branch`/`after_branch` triggers branch mode.
 
 ### Writing smoke tests
 
@@ -71,6 +83,7 @@ For gems that affect a running Rails app (e.g. `rails`, `puma`, `rack`), you can
 
 Create a `.gem_update.yml` in your project root (or run `gem-update init`):
 
+**Gem mode** (test a gem upgrade):
 ```yaml
 gem_name: rails
 server: true
@@ -83,11 +96,24 @@ before_port: 4000
 after_port: 4001
 ```
 
+**Branch mode** (compare two branches):
+```yaml
+before_branch: main          # defaults to "main" if omitted
+after_branch: bump-rack-3.0  # defaults to current branch if omitted
+server: true
+sandbox: true
+database_url_base: "postgresql://localhost"
+```
+
+In branch mode, `after_branch` is used as the identifier for smoke test discovery (looks for `test/smoke/<after_branch>.rb` or `test/smoke/<after_branch>/*.rb`) and output directory naming.
+
 | Key | Default | Description |
 |---|---|---|
-| `gem_name` | *(required)* | The gem to test upgrading |
+| `gem_name` | *(required in gem mode)* | The gem to test upgrading |
+| `before_branch` | `main` | Base branch for comparison (branch mode) |
+| `after_branch` | *(current branch)* | Branch with changes to test (branch mode) |
 | `server` | `false` | Start puma servers for A/B testing |
-| `version` | *(latest)* | Target version to update to (e.g. `"7.2.0"`) |
+| `version` | *(latest)* | Target version to update to (gem mode only) |
 | `before_port` | `3000` | Port for the original (pre-update) server |
 | `after_port` | `3001` | Port for the updated (post-update) server |
 | `rails_env` | `test` | `RAILS_ENV` for both servers |

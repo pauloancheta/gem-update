@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "open3"
 
 module Gem
   module Update
@@ -22,6 +23,26 @@ module Gem
 
       def gem_name
         @settings["gem_name"]
+      end
+
+      def before_branch
+        @settings["before_branch"]
+      end
+
+      def after_branch
+        @settings["after_branch"]
+      end
+
+      def mode
+        @mode ||= if @settings.key?("before_branch") || @settings.key?("after_branch")
+                    "branch"
+                  else
+                    "gem"
+                  end
+      end
+
+      def identifier
+        mode == "branch" ? after_branch : gem_name
       end
 
       def server?
@@ -72,12 +93,43 @@ module Gem
         yaml = YAML.safe_load_file(path) || {}
         settings = DEFAULTS.merge(yaml)
 
-        gem_name = settings["gem_name"]
-        if gem_name.nil? || (gem_name.is_a?(String) && gem_name.strip.empty?)
-          raise Gem::Update::Error, "gem_name is required in .gem_update.yml"
-        end
+        validate!(settings)
 
         settings
+      end
+
+      def validate!(settings)
+        has_gem = settings.key?("gem_name") && settings["gem_name"].is_a?(String) && !settings["gem_name"].strip.empty?
+        has_branch = settings.key?("before_branch") || settings.key?("after_branch")
+
+        if has_gem && has_branch
+          raise Gem::Update::Error, "Cannot set both gem_name and branch fields (before_branch/after_branch)"
+        end
+
+        if has_branch
+          validate_branch_mode!(settings)
+        else
+          validate_gem_mode!(settings)
+        end
+      end
+
+      def validate_gem_mode!(settings)
+        gem_name = settings["gem_name"]
+        return unless gem_name.nil? || (gem_name.is_a?(String) && gem_name.strip.empty?)
+
+        raise Gem::Update::Error, "gem_name is required in .gem_update.yml"
+      end
+
+      def validate_branch_mode!(settings)
+        settings["before_branch"] ||= "main"
+        settings["after_branch"] ||= current_git_branch
+      end
+
+      def current_git_branch
+        stdout, _, status = Open3.capture3("git", "rev-parse", "--abbrev-ref", "HEAD")
+        raise Gem::Update::Error, "Failed to detect current git branch" unless status.success?
+
+        stdout.strip
       end
     end
   end
