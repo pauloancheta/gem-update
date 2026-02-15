@@ -184,6 +184,7 @@ class Gem::TestSandbox < Minitest::Test
 
     # Allow repeated calls
     stub = Object.new
+    stub.define_singleton_method(:gem_name) { "rails" }
     stub.define_singleton_method(:rails_env) { "test" }
     stub.define_singleton_method(:database_url_base) { "postgresql://localhost" }
     stub.define_singleton_method(:setup_task) { setup_task }

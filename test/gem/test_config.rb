@@ -13,157 +13,93 @@ class Gem::TestConfig < Minitest::Test
     FileUtils.rm_rf(@tmpdir)
   end
 
-  def test_defaults_when_no_file
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+  def test_raises_when_no_config_file
+    error = assert_raises(Gem::Update::Error) do
+      Gem::Update::Config.new(project_root: @tmpdir)
+    end
+
+    assert_match(/Config file not found/, error.message)
+  end
+
+  def test_raises_when_gem_name_missing
+    write_config("server" => true)
+
+    error = assert_raises(Gem::Update::Error) do
+      Gem::Update::Config.new(project_root: @tmpdir)
+    end
+
+    assert_match(/gem_name is required/, error.message)
+  end
+
+  def test_raises_when_gem_name_empty
+    write_config("gem_name" => "  ")
+
+    error = assert_raises(Gem::Update::Error) do
+      Gem::Update::Config.new(project_root: @tmpdir)
+    end
+
+    assert_match(/gem_name is required/, error.message)
+  end
+
+  def test_reads_gem_name
+    write_config("gem_name" => "rails")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
+
+    assert_equal "rails", config.gem_name
+  end
+
+  def test_defaults_with_minimal_config
+    write_config("gem_name" => "rails")
+
+    config = Gem::Update::Config.new(project_root: @tmpdir)
 
     refute config.server?
     assert_equal 3000, config.before_port
     assert_equal 3001, config.after_port
+    assert_equal "test", config.rails_env
+    assert config.sandbox?
+    assert_nil config.version
+    assert_nil config.setup_task
+    assert_nil config.setup_script
+    assert_nil config.database_url_base
   end
 
-  def test_reads_defaults_from_yaml
-    write_config("defaults" => { "server" => true, "before_port" => 5000, "after_port" => 5001 })
+  def test_overrides_defaults
+    write_config(
+      "gem_name" => "rails",
+      "server" => true,
+      "before_port" => 5000,
+      "after_port" => 5001,
+      "version" => "7.2.0",
+      "sandbox" => false,
+      "rails_env" => "staging",
+      "setup_task" => "db:seed",
+      "setup_script" => "test/smoke/seed.rb",
+      "database_url_base" => "postgresql://localhost"
+    )
 
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+    config = Gem::Update::Config.new(project_root: @tmpdir)
 
     assert config.server?
     assert_equal 5000, config.before_port
     assert_equal 5001, config.after_port
-  end
-
-  def test_gem_specific_overrides
-    write_config(
-      "defaults" => { "server" => false, "before_port" => 3000, "after_port" => 3001 },
-      "rails" => { "server" => true, "before_port" => 4000, "after_port" => 4001 }
-    )
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert config.server?
-    assert_equal 4000, config.before_port
-    assert_equal 4001, config.after_port
-  end
-
-  def test_gem_override_partial_merge
-    write_config(
-      "defaults" => { "server" => true, "before_port" => 3000, "after_port" => 3001 },
-      "rails" => { "before_port" => 4000 }
-    )
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert config.server?
-    assert_equal 4000, config.before_port
-    assert_equal 3001, config.after_port
-  end
-
-  def test_unmatched_gem_uses_defaults
-    write_config(
-      "defaults" => { "server" => true },
-      "rails" => { "before_port" => 4000 }
-    )
-
-    config = Gem::Update::Config.new("sidekiq", project_root: @tmpdir)
-
-    assert config.server?
-    assert_equal 3000, config.before_port
-    assert_equal 3001, config.after_port
-  end
-
-  def test_version_from_gem_override
-    write_config(
-      "rails" => { "version" => "7.2.0" }
-    )
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
     assert_equal "7.2.0", config.version
-  end
-
-  def test_version_defaults_to_nil
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert_nil config.version
-  end
-
-  def test_rails_env_defaults_to_test
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert_equal "test", config.rails_env
-  end
-
-  def test_rails_env_override
-    write_config("rails" => { "rails_env" => "staging" })
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert_equal "staging", config.rails_env
-  end
-
-  def test_sandbox_defaults_to_true
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert config.sandbox?
-  end
-
-  def test_sandbox_can_be_disabled
-    write_config("rails" => { "sandbox" => false })
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
     refute config.sandbox?
-  end
-
-  def test_setup_task_defaults_to_nil
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert_nil config.setup_task
-  end
-
-  def test_setup_task_from_config
-    write_config("rails" => { "setup_task" => "db:seed" })
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
+    assert_equal "staging", config.rails_env
     assert_equal "db:seed", config.setup_task
-  end
-
-  def test_setup_script_defaults_to_nil
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert_nil config.setup_script
-  end
-
-  def test_setup_script_from_config
-    write_config("rails" => { "setup_script" => "test/smoke/seed.rb" })
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
     assert_equal "test/smoke/seed.rb", config.setup_script
-  end
-
-  def test_database_url_base_defaults_to_nil
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
-    assert_nil config.database_url_base
-  end
-
-  def test_database_url_base_from_config
-    write_config("defaults" => { "database_url_base" => "postgresql://localhost" })
-
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
-
     assert_equal "postgresql://localhost", config.database_url_base
   end
 
-  def test_empty_yaml_file
+  def test_empty_yaml_file_raises
     File.write(File.join(@tmpdir, ".gem_update.yml"), "")
 
-    config = Gem::Update::Config.new("rails", project_root: @tmpdir)
+    error = assert_raises(Gem::Update::Error) do
+      Gem::Update::Config.new(project_root: @tmpdir)
+    end
 
-    refute config.server?
-    assert_equal 3000, config.before_port
-    assert_equal 3001, config.after_port
+    assert_match(/gem_name is required/, error.message)
   end
 
   private

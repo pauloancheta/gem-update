@@ -3,11 +3,10 @@
 
 require "gem/update"
 
-gem_name = ARGV[0]
-
-if gem_name.nil? || gem_name.empty?
-  warn "Usage: gem-update <gem_name>"
-  exit 1
+if ARGV[0] == "init"
+  initializer = Gem::Update::Initializer.new
+  initializer.run
+  exit 0
 end
 
 unless system("git rev-parse --is-inside-work-tree > /dev/null 2>&1")
@@ -15,6 +14,11 @@ unless system("git rev-parse --is-inside-work-tree > /dev/null 2>&1")
   exit 1
 end
 
-config = Gem::Update::Config.new(gem_name)
-runner = Gem::Update::Runner.new(gem_name, config: config)
-runner.run
+begin
+  config = Gem::Update::Config.new
+  runner = Gem::Update::Runner.new(config: config)
+  runner.run
+rescue Gem::Update::Error => e
+  warn "Error: #{e.message}"
+  exit 1
+end

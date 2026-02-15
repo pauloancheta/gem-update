@@ -16,19 +16,25 @@ gem "gem-update"
 
 ## Usage
 
-Run from inside a git repository:
+### Quick start
 
 ```sh
-gem-update <gem_name>
+# 1. Generate config file and smoke test directory
+gem-update init
+
+# 2. Edit .gem_update.yml — set gem_name and other options
+# 3. Run from inside a git repository
+gem-update
 ```
 
 ### What it does
 
-1. Creates a git worktree from the current HEAD
-2. Runs `bundle update <gem_name>` in the worktree
-3. Runs your smoke tests against the original and updated code
-4. Generates a comparison report (timing, exit status, stdout/stderr diffs, Gemfile.lock diff)
-5. Cleans up the worktree
+1. Reads `gem_name` from `.gem_update.yml`
+2. Creates a git worktree from the current HEAD
+3. Runs `bundle update <gem_name>` in the worktree
+4. Runs your smoke tests against the original and updated code
+5. Generates a comparison report (timing, exit status, stdout/stderr diffs, Gemfile.lock diff)
+6. Cleans up the worktree
 
 ### Writing smoke tests
 
@@ -63,30 +69,23 @@ For gems that affect a running Rails app (e.g. `rails`, `puma`, `rack`), you can
 
 ### Configuration
 
-Create a `.gem_update.yml` in your project root:
+Create a `.gem_update.yml` in your project root (or run `gem-update init`):
 
 ```yaml
-defaults:
-  server: false
-  before_port: 3000
-  after_port: 3001
-
-rails:
-  server: true
-  version: "7.2.0"
-  sandbox: true
-  database_url_base: "postgresql://localhost"
-  setup_task: "db:seed"
-  setup_script: "test/smoke/seed.rb"
-  before_port: 4000
-  after_port: 4001
+gem_name: rails
+server: true
+version: "7.2.0"
+sandbox: true
+database_url_base: "postgresql://localhost"
+setup_task: "db:seed"
+setup_script: "test/smoke/seed.rb"
+before_port: 4000
+after_port: 4001
 ```
-
-- **`defaults`** — global settings applied to all gems
-- **`<gem_name>`** — per-gem overrides, merged on top of defaults
 
 | Key | Default | Description |
 |---|---|---|
+| `gem_name` | *(required)* | The gem to test upgrading |
 | `server` | `false` | Start puma servers for A/B testing |
 | `version` | *(latest)* | Target version to update to (e.g. `"7.2.0"`) |
 | `before_port` | `3000` | Port for the original (pre-update) server |
@@ -207,22 +206,21 @@ The report will include a diff of `browser_errors.log` between the before and af
 # 1. Make sure your test suite passes first
 bundle exec rake test
 
-# 2. Create config
-cat > .gem_update.yml << 'EOF'
-defaults:
-  server: false
+# 2. Create config and smoke test directory
+gem-update init
 
-rails:
-  server: true
-  sandbox: true
-  database_url_base: "postgresql://localhost"
-  setup_task: "db:seed"
-  before_port: 3000
-  after_port: 3001
+# 3. Edit .gem_update.yml
+cat > .gem_update.yml << 'EOF'
+gem_name: rails
+server: true
+sandbox: true
+database_url_base: "postgresql://localhost"
+setup_task: "db:seed"
+before_port: 3000
+after_port: 3001
 EOF
 
-# 3. Write a smoke test
-mkdir -p test/smoke
+# 4. Write a smoke test
 cat > test/smoke/rails.rb << 'RUBY'
 require "yaml"
 require "net/http"
@@ -233,8 +231,8 @@ abort "Failed: #{res.code}" unless res.code == "200"
 puts "OK"
 RUBY
 
-# 4. Run the upgrade test
-gem-update rails
+# 5. Run the upgrade test
+gem-update
 ```
 
 ### Example output
@@ -242,7 +240,7 @@ gem-update rails
 With servers enabled:
 
 ```
-$ gem-update rails
+$ gem-update
 
 == gem-update: rails ==
 
@@ -290,7 +288,7 @@ Artifacts saved to: tmp/gem_updates/rails
 Without servers (default):
 
 ```
-$ gem-update nokogiri
+$ gem-update
 
 == gem-update: nokogiri ==
 

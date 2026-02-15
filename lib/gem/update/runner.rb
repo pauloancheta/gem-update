@@ -5,10 +5,10 @@ require "fileutils"
 module Gem
   module Update
     class Runner
-      def initialize(gem_name, config: nil)
-        @gem_name = gem_name
-        @config = config || Config.new(gem_name)
-        @output_dir = File.join("tmp", "gem_updates", gem_name)
+      def initialize(config:)
+        @config = config
+        @gem_name = config.gem_name
+        @output_dir = File.join("tmp", "gem_updates", @gem_name)
       end
 
       def run

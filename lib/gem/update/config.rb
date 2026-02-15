@@ -16,9 +16,12 @@ module Gem
         "database_url_base" => nil
       }.freeze
 
-      def initialize(gem_name, project_root: Dir.pwd)
-        @gem_name = gem_name
+      def initialize(project_root: Dir.pwd)
         @settings = load_settings(project_root)
+      end
+
+      def gem_name
+        @settings["gem_name"]
       end
 
       def server?
@@ -61,13 +64,20 @@ module Gem
 
       def load_settings(project_root)
         path = File.join(project_root, ".gem_update.yml")
-        return DEFAULTS.dup unless File.exist?(path)
+
+        unless File.exist?(path)
+          raise Gem::Update::Error, "Config file not found: .gem_update.yml\nRun `gem-update init` to create one."
+        end
 
         yaml = YAML.safe_load_file(path) || {}
-        defaults = DEFAULTS.merge(yaml.fetch("defaults", {}))
-        gem_overrides = yaml.fetch(@gem_name, {})
+        settings = DEFAULTS.merge(yaml)
 
-        defaults.merge(gem_overrides)
+        gem_name = settings["gem_name"]
+        if gem_name.nil? || (gem_name.is_a?(String) && gem_name.strip.empty?)
+          raise Gem::Update::Error, "gem_name is required in .gem_update.yml"
+        end
+
+        settings
       end
     end
   end
