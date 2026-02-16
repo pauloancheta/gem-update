@@ -7,13 +7,14 @@ module RailsSmoke
   class SmokeTest
     Result = Struct.new(:stdout, :stderr, :elapsed, :success, keyword_init: true)
 
-    def initialize(gem_name)
+    def initialize(gem_name, test_dir: Dir.pwd)
       @gem_name = gem_name
+      @test_dir = test_dir
     end
 
     def test_files
-      single = File.join("test", "smoke", "#{@gem_name}.rb")
-      dir = File.join("test", "smoke", @gem_name)
+      single = File.join(@test_dir, "test", "smoke", "#{@gem_name}.rb")
+      dir = File.join(@test_dir, "test", "smoke", @gem_name)
 
       files = []
       files << single if File.exist?(single)
@@ -41,9 +42,8 @@ module RailsSmoke
       start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       files.each do |file|
-        abs_file = File.expand_path(file, Dir.pwd)
         stdout, stderr, status = Open3.capture3(
-          "bundle", "exec", "ruby", abs_file, config_path,
+          "bundle", "exec", "ruby", file, config_path,
           chdir: directory
         )
         all_stdout << stdout

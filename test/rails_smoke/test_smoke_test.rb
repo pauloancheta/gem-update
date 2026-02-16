@@ -7,7 +7,7 @@ require "fileutils"
 class RailsSmoke::TestSmokeTest < Minitest::Test
   def setup
     @original_dir = Dir.pwd
-    @tmpdir = Dir.mktmpdir("rails-smoke-smoke-test")
+    @tmpdir = File.realpath(Dir.mktmpdir("rails-smoke-smoke-test"))
     Dir.chdir(@tmpdir)
   end
 
@@ -21,7 +21,7 @@ class RailsSmoke::TestSmokeTest < Minitest::Test
     File.write("test/smoke/rails.rb", 'puts "hello"')
 
     smoke = RailsSmoke::SmokeTest.new("rails")
-    assert_equal ["test/smoke/rails.rb"], smoke.test_files
+    assert_equal [File.join(@tmpdir, "test/smoke/rails.rb")], smoke.test_files
   end
 
   def test_discovers_directory_files
@@ -31,8 +31,8 @@ class RailsSmoke::TestSmokeTest < Minitest::Test
 
     smoke = RailsSmoke::SmokeTest.new("rails")
     files = smoke.test_files
-    assert_includes files, "test/smoke/rails/boot.rb"
-    assert_includes files, "test/smoke/rails/routes.rb"
+    assert_includes files, File.join(@tmpdir, "test/smoke/rails/boot.rb")
+    assert_includes files, File.join(@tmpdir, "test/smoke/rails/routes.rb")
   end
 
   def test_discovers_both_single_and_directory
