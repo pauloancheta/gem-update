@@ -37,7 +37,6 @@ module RailsSmoke
                                             version: @config.version)
       unless updater.run
         warn "bundle update #{@identifier} failed. Check #{@output_dir}/bundle_update.log"
-        cleanup(worktree)
         exit 1
       end
 
@@ -52,8 +51,8 @@ module RailsSmoke
       report.generate
       html_report = HtmlReport.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
       html_report.generate
-
-      cleanup(worktree)
+    ensure
+      cleanup(worktree) if worktree
     end
 
     def run_branch_mode
@@ -77,8 +76,8 @@ module RailsSmoke
       report.generate
       html_report = HtmlReport.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
       html_report.generate
-
-      cleanup(before_worktree, after_worktree)
+    ensure
+      cleanup(*[before_worktree, after_worktree].compact)
     end
 
     def run_branch_with_servers(before_worktree, after_worktree)
