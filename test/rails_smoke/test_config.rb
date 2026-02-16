@@ -170,6 +170,112 @@ class RailsSmoke::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLen
     assert_nil config.gem_name
   end
 
+  # --- database_url_base auto-detection ---
+
+  def test_auto_detects_database_url_base_from_database_yml
+    write_config("gem_name" => "rails")
+    write_database_yml(
+      "test" => {
+        "adapter" => "postgresql",
+        "host" => "localhost",
+        "port" => 5432,
+        "username" => "myapp",
+        "password" => "secret"
+      }
+    )
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal "postgresql://myapp:secret@localhost:5432", config.database_url_base
+  end
+
+  def test_auto_detects_database_url_base_without_password
+    write_config("gem_name" => "rails")
+    write_database_yml(
+      "test" => {
+        "adapter" => "postgresql",
+        "host" => "localhost",
+        "username" => "myapp"
+      }
+    )
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal "postgresql://myapp@localhost", config.database_url_base
+  end
+
+  def test_auto_detects_mysql2_database_url_base
+    write_config("gem_name" => "rails")
+    write_database_yml(
+      "test" => {
+        "adapter" => "mysql2",
+        "host" => "127.0.0.1",
+        "port" => 3306,
+        "username" => "root"
+      }
+    )
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal "mysql2://root@127.0.0.1:3306", config.database_url_base
+  end
+
+  def test_auto_detects_sqlite3_database_url_base
+    write_config("gem_name" => "rails")
+    write_database_yml(
+      "test" => {
+        "adapter" => "sqlite3",
+        "database" => "db/test.sqlite3"
+      }
+    )
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal "sqlite3", config.database_url_base
+  end
+
+  def test_explicit_database_url_base_overrides_auto_detection
+    write_config("gem_name" => "rails", "database_url_base" => "postgresql://custom:5433")
+    write_database_yml(
+      "test" => {
+        "adapter" => "postgresql",
+        "host" => "localhost",
+        "username" => "myapp"
+      }
+    )
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal "postgresql://custom:5433", config.database_url_base
+  end
+
+  def test_auto_detect_returns_nil_without_database_yml
+    write_config("gem_name" => "rails")
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_nil config.database_url_base
+  end
+
+  def test_auto_detect_uses_configured_rails_env
+    write_config("gem_name" => "rails", "rails_env" => "development")
+    write_database_yml(
+      "development" => {
+        "adapter" => "postgresql",
+        "host" => "devhost",
+        "username" => "devuser"
+      },
+      "test" => {
+        "adapter" => "sqlite3",
+        "database" => "db/test.sqlite3"
+      }
+    )
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal "postgresql://devuser@devhost", config.database_url_base
+  end
+
   def test_raises_when_both_gem_name_and_branch_fields
     write_config("gem_name" => "rails", "after_branch" => "bump-rack-3.0")
 
@@ -194,5 +300,11 @@ class RailsSmoke::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLen
 
   def write_config(hash)
     File.write(File.join(@tmpdir, ".rails_smoke.yml"), YAML.dump(hash))
+  end
+
+  def write_database_yml(hash)
+    config_dir = File.join(@tmpdir, "config")
+    FileUtils.mkdir_p(config_dir)
+    File.write(File.join(config_dir, "database.yml"), YAML.dump(hash))
   end
 end

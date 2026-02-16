@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "open3"
 
 module RailsSmoke
   class Worktree
@@ -13,7 +14,10 @@ module RailsSmoke
 
     def create(ref: "HEAD")
       FileUtils.mkdir_p(File.dirname(@path))
-      system("git", "worktree", "add", @path, ref, out: File::NULL, err: File::NULL)
+      out, status = Open3.capture2e("git", "worktree", "add", @path, ref)
+      return if status.success?
+
+      raise "Failed to create git worktree at #{@path} for ref '#{ref}': #{out.strip}"
     end
 
     def remove

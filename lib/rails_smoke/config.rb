@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "erb"
 require "open3"
 
 module RailsSmoke
@@ -17,6 +18,7 @@ module RailsSmoke
     }.freeze
 
     def initialize(project_root: Dir.pwd)
+      @project_root = project_root
       @settings = load_settings(project_root)
     end
 
@@ -77,7 +79,7 @@ module RailsSmoke
     end
 
     def database_url_base
-      @settings["database_url_base"]
+      @settings["database_url_base"] || detect_database_url_base
     end
 
     private
@@ -122,6 +124,51 @@ module RailsSmoke
     def validate_branch_mode!(settings)
       settings["before_branch"] ||= "main"
       settings["after_branch"] ||= current_git_branch
+    end
+
+    def detect_database_url_base
+      @detect_database_url_base ||= build_database_url_base
+    end
+
+    def build_database_url_base
+      db_config_path = File.join(@project_root, "config", "database.yml")
+      return nil unless File.exist?(db_config_path)
+
+      raw = File.read(db_config_path)
+      erb_result = ERB.new(raw).result
+      db_yaml = YAML.safe_load(erb_result, permitted_classes: [Symbol]) || {}
+
+      env_config = db_yaml[rails_env]
+      return nil unless env_config.is_a?(Hash)
+
+      adapter = env_config["adapter"]
+      return nil if adapter.nil? || adapter.strip.empty?
+
+      scheme = adapter_to_scheme(adapter)
+      return nil unless scheme
+
+      return scheme if scheme == "sqlite3"
+
+      host = env_config["host"] || "localhost"
+      port = env_config["port"]
+      username = env_config["username"]
+      password = env_config["password"]
+
+      userinfo = if username && !username.empty?
+                   password && !password.empty? ? "#{username}:#{password}@" : "#{username}@"
+                 end
+
+      port_part = port ? ":#{port}" : ""
+
+      "#{scheme}://#{userinfo}#{host}#{port_part}"
+    end
+
+    def adapter_to_scheme(adapter)
+      case adapter
+      when "postgresql" then "postgresql"
+      when "mysql2" then "mysql2"
+      when "sqlite3" then "sqlite3"
+      end
     end
 
     def current_git_branch

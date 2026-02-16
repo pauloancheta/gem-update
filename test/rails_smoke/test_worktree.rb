@@ -26,7 +26,7 @@ class RailsSmoke::TestWorktree < Minitest::Test
     base_dir = File.join(@tmpdir, "output")
     worktree = RailsSmoke::Worktree.new("test-gem", base_dir: base_dir)
 
-    assert worktree.create
+    worktree.create
     assert File.directory?(worktree.path)
     assert File.exist?(File.join(worktree.path, "dummy.txt"))
 
@@ -50,7 +50,7 @@ class RailsSmoke::TestWorktree < Minitest::Test
     base_dir = File.join(@tmpdir, "output")
     worktree = RailsSmoke::Worktree.new("test-gem", base_dir: base_dir)
 
-    assert worktree.create(ref: "test-branch")
+    worktree.create(ref: "test-branch")
     assert File.directory?(worktree.path)
     assert File.exist?(File.join(worktree.path, "branch_file.txt"))
 
@@ -62,7 +62,7 @@ class RailsSmoke::TestWorktree < Minitest::Test
     worktree = RailsSmoke::Worktree.new("test-gem", base_dir: base_dir, suffix: "before_worktree")
 
     assert_equal File.join(base_dir, "before_worktree"), worktree.path
-    assert worktree.create
+    worktree.create
     assert File.directory?(worktree.path)
 
     worktree.remove
