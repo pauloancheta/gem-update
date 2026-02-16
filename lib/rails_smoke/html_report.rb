@@ -13,7 +13,9 @@ module RailsSmoke
 
     def generate
       html = build_html
-      File.write(File.join(@output_dir, "report.html"), html)
+      path = File.join(@output_dir, "report.html")
+      File.write(path, html)
+      path
     end
 
     private

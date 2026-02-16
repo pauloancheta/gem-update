@@ -16,42 +16,36 @@ class RailsSmoke::TestSmokeTest < Minitest::Test
     FileUtils.rm_rf(@tmpdir)
   end
 
-  def test_discovers_single_file
+  def test_discovers_files_in_smoke_directory
     FileUtils.mkdir_p("test/smoke")
-    File.write("test/smoke/rails.rb", 'puts "hello"')
+    File.write("test/smoke/boot.rb", 'puts "boot"')
+    File.write("test/smoke/routes.rb", 'puts "routes"')
 
-    smoke = RailsSmoke::SmokeTest.new("rails")
-    assert_equal [File.join(@tmpdir, "test/smoke/rails.rb")], smoke.test_files
-  end
-
-  def test_discovers_directory_files
-    FileUtils.mkdir_p("test/smoke/rails")
-    File.write("test/smoke/rails/boot.rb", 'puts "boot"')
-    File.write("test/smoke/rails/routes.rb", 'puts "routes"')
-
-    smoke = RailsSmoke::SmokeTest.new("rails")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
     files = smoke.test_files
-    assert_includes files, File.join(@tmpdir, "test/smoke/rails/boot.rb")
-    assert_includes files, File.join(@tmpdir, "test/smoke/rails/routes.rb")
+    assert_includes files, File.join(@tmpdir, "test/smoke/boot.rb")
+    assert_includes files, File.join(@tmpdir, "test/smoke/routes.rb")
   end
 
-  def test_discovers_both_single_and_directory
-    FileUtils.mkdir_p("test/smoke/rails")
-    File.write("test/smoke/rails.rb", 'puts "main"')
-    File.write("test/smoke/rails/extra.rb", 'puts "extra"')
+  def test_discovers_files_in_subdirectories
+    FileUtils.mkdir_p("test/smoke/models")
+    File.write("test/smoke/boot.rb", 'puts "boot"')
+    File.write("test/smoke/models/user.rb", 'puts "user"')
 
-    smoke = RailsSmoke::SmokeTest.new("rails")
-    assert_equal 2, smoke.test_files.size
+    smoke = RailsSmoke::SmokeTest.new("myapp")
+    files = smoke.test_files
+    assert_includes files, File.join(@tmpdir, "test/smoke/boot.rb")
+    assert_includes files, File.join(@tmpdir, "test/smoke/models/user.rb")
   end
 
   def test_no_test_files
-    smoke = RailsSmoke::SmokeTest.new("nonexistent")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
     assert_empty smoke.test_files
   end
 
   def test_run_with_no_tests_returns_failure
     output_dir = File.join(@tmpdir, "output")
-    smoke = RailsSmoke::SmokeTest.new("nonexistent")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
     result = smoke.run(directory: @tmpdir, output_dir: output_dir)
 
     refute result.success

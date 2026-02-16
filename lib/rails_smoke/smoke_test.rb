@@ -13,20 +13,13 @@ module RailsSmoke
     end
 
     def test_files
-      single = File.join(@test_dir, "test", "smoke", "#{@gem_name}.rb")
-      dir = File.join(@test_dir, "test", "smoke", @gem_name)
-
-      files = []
-      files << single if File.exist?(single)
-      files.concat(Dir.glob(File.join(dir, "*.rb")).sort) if File.directory?(dir)
-      files
+      Dir.glob(File.join(@test_dir, "test", "smoke", "**", "*.rb")).sort
     end
 
     def run(directory:, output_dir:, server_port: nil)
       files = test_files
       if files.empty?
-        warn "No smoke tests found for '#{@gem_name}'. " \
-             "Expected test/smoke/#{@gem_name}.rb or test/smoke/#{@gem_name}/*.rb"
+        warn "No smoke tests found. Expected test/smoke/*.rb"
         return Result.new(stdout: "", stderr: "No smoke tests found", elapsed: 0, success: false)
       end
 

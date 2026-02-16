@@ -13,8 +13,9 @@ module RailsSmoke
 
     def generate
       report = build_report
-      File.write(File.join(@output_dir, "report.txt"), report)
-      puts report
+      path = File.join(@output_dir, "report.txt")
+      File.write(path, report)
+      path
     end
 
     private

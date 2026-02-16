@@ -8,11 +8,12 @@ module RailsSmoke
     def initialize(config:)
       @config = config
       @identifier = config.identifier
-      @output_dir = File.join("tmp", "rails_smoke", @identifier)
+      @worktree_dir = File.join("tmp", "rails_smoke", @identifier)
+      @artifacts_dir = "rails_smoke_artifacts"
     end
 
     def run
-      setup_output_dir
+      setup_dirs
 
       puts "== rails-smoke: #{@identifier} =="
       puts ""
@@ -28,15 +29,15 @@ module RailsSmoke
 
     def run_gem_mode
       puts "1. Creating worktree..."
-      worktree = Worktree.new(@identifier, base_dir: @output_dir)
+      worktree = Worktree.new(@identifier, base_dir: @worktree_dir)
       worktree.create
 
       version_label = @config.version ? " to #{@config.version}" : ""
       puts "2. Running bundle update #{@identifier}#{version_label}..."
-      updater = GemUpdater.new(@identifier, worktree_path: worktree.path, output_dir: @output_dir,
+      updater = GemUpdater.new(@identifier, worktree_path: worktree.path, output_dir: @artifacts_dir,
                                             version: @config.version)
       unless updater.run
-        warn "bundle update #{@identifier} failed. Check #{@output_dir}/bundle_update.log"
+        warn "bundle update #{@identifier} failed. Check #{@artifacts_dir}/bundle_update.log"
         exit 1
       end
 
@@ -46,18 +47,14 @@ module RailsSmoke
                                       run_without_servers(worktree)
                                     end
 
-      puts "5. Generating report..."
-      report = Report.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
-      report.generate
-      html_report = HtmlReport.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
-      html_report.generate
+      generate_reports(before_result, after_result)
     ensure
       cleanup(worktree) if worktree
     end
 
     def run_branch_mode
       puts "1. Creating worktree for #{@config.before_branch}..."
-      worktree = Worktree.new(@identifier, base_dir: @output_dir, suffix: "before_worktree")
+      worktree = Worktree.new(@identifier, base_dir: @worktree_dir, suffix: "before_worktree")
       worktree.create(ref: @config.before_branch)
 
       puts "2. Running bundle install in worktree..."
@@ -72,11 +69,7 @@ module RailsSmoke
                                       run_branch_without_servers(worktree)
                                     end
 
-      puts "6. Generating report..."
-      report = Report.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
-      report.generate
-      html_report = HtmlReport.new(@identifier, before: before_result, after: after_result, output_dir: @output_dir)
-      html_report.generate
+      generate_reports(before_result, after_result)
     ensure
       cleanup(worktree) if worktree
     end
@@ -84,9 +77,9 @@ module RailsSmoke
     def run_branch_with_servers(worktree)
       sandbox, before_env, after_env = setup_branch_sandbox(worktree)
 
-      before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@output_dir, "before"),
+      before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@artifacts_dir, "before"),
                                      env: before_env)
-      after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@output_dir, "after"),
+      after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@artifacts_dir, "after"),
                                     env: after_env)
       servers = [before_server, after_server]
 
@@ -110,7 +103,7 @@ module RailsSmoke
       sandbox = nil
 
       if @config.sandbox?
-        sandbox = Sandbox.new(@identifier, config: @config, log_dir: File.join(@output_dir, "sandbox"))
+        sandbox = Sandbox.new(@identifier, config: @config, log_dir: File.join(@artifacts_dir, "sandbox"))
         puts "   Setting up sandbox databases..."
         sandbox.setup(directory: worktree.path, database_url: sandbox.before_url)
         sandbox.setup(directory: Dir.pwd, database_url: sandbox.after_url)
@@ -126,11 +119,11 @@ module RailsSmoke
       smoke = SmokeTest.new(@identifier)
 
       before_thread = Thread.new do
-        smoke.run(directory: worktree.path, output_dir: File.join(@output_dir, "before"),
+        smoke.run(directory: worktree.path, output_dir: File.join(@artifacts_dir, "before"),
                   server_port: @config.before_port)
       end
       after_thread = Thread.new do
-        smoke.run(directory: Dir.pwd, output_dir: File.join(@output_dir, "after"),
+        smoke.run(directory: Dir.pwd, output_dir: File.join(@artifacts_dir, "after"),
                   server_port: @config.after_port)
       end
 
@@ -148,12 +141,26 @@ module RailsSmoke
     def run_branch_without_servers(worktree)
       puts "4. Running smoke tests (before)..."
       smoke = SmokeTest.new(@identifier)
-      before_result = smoke.run(directory: worktree.path, output_dir: File.join(@output_dir, "before"))
+      before_result = smoke.run(directory: worktree.path, output_dir: File.join(@artifacts_dir, "before"))
 
       puts "5. Running smoke tests (after)..."
-      after_result = smoke.run(directory: Dir.pwd, output_dir: File.join(@output_dir, "after"))
+      after_result = smoke.run(directory: Dir.pwd, output_dir: File.join(@artifacts_dir, "after"))
 
       [before_result, after_result]
+    end
+
+    def generate_reports(before_result, after_result)
+      report = Report.new(@identifier, before: before_result, after: after_result, output_dir: @artifacts_dir)
+      report_path = report.generate
+      html_report = HtmlReport.new(@identifier, before: before_result, after: after_result, output_dir: @artifacts_dir)
+      html_path = html_report.generate
+
+      puts ""
+      puts "== Done! =="
+      puts ""
+      puts "  View text report:  cat #{report_path}"
+      puts "  View HTML report:  open #{html_path}"
+      puts ""
     end
 
     def bundle_install(directory)
@@ -162,11 +169,11 @@ module RailsSmoke
       end
 
       log = "$ bundle install\n\n#{stdout}\n#{stderr}"
-      File.write(File.join(@output_dir, "bundle_install.log"), log)
+      File.write(File.join(@artifacts_dir, "bundle_install.log"), log)
 
       return if status.success?
 
-      warn "bundle install failed in worktree. Check #{@output_dir}/bundle_install.log"
+      warn "bundle install failed in worktree. Check #{@artifacts_dir}/bundle_install.log"
       exit 1
     end
 
@@ -175,15 +182,15 @@ module RailsSmoke
       after_lock = File.join(after_dir, "Gemfile.lock")
 
       diff, = Open3.capture3("diff", "-u", before_lock, after_lock)
-      File.write(File.join(@output_dir, "gemfile_lock.diff"), diff)
+      File.write(File.join(@artifacts_dir, "gemfile_lock.diff"), diff)
     end
 
     def run_with_servers(worktree)
       sandbox, before_env, after_env = setup_sandbox(worktree)
 
-      before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@output_dir, "before"),
+      before_server = PumaServer.new(port: @config.before_port, log_dir: File.join(@artifacts_dir, "before"),
                                      env: before_env)
-      after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@output_dir, "after"),
+      after_server = PumaServer.new(port: @config.after_port, log_dir: File.join(@artifacts_dir, "after"),
                                     env: after_env)
       servers = [before_server, after_server]
 
@@ -202,7 +209,7 @@ module RailsSmoke
       sandbox = nil
 
       if @config.sandbox?
-        sandbox = Sandbox.new(@identifier, config: @config, log_dir: File.join(@output_dir, "sandbox"))
+        sandbox = Sandbox.new(@identifier, config: @config, log_dir: File.join(@artifacts_dir, "sandbox"))
         puts "   Setting up sandbox databases..."
         sandbox.setup(directory: Dir.pwd, database_url: sandbox.before_url)
         sandbox.setup(directory: worktree.path, database_url: sandbox.after_url)
@@ -226,11 +233,11 @@ module RailsSmoke
       smoke = SmokeTest.new(@identifier)
 
       before_thread = Thread.new do
-        smoke.run(directory: Dir.pwd, output_dir: File.join(@output_dir, "before"),
+        smoke.run(directory: Dir.pwd, output_dir: File.join(@artifacts_dir, "before"),
                   server_port: @config.before_port)
       end
       after_thread = Thread.new do
-        smoke.run(directory: worktree.path, output_dir: File.join(@output_dir, "after"),
+        smoke.run(directory: worktree.path, output_dir: File.join(@artifacts_dir, "after"),
                   server_port: @config.after_port)
       end
 
@@ -263,18 +270,19 @@ module RailsSmoke
     def run_without_servers(worktree)
       puts "3. Running smoke tests (before)..."
       smoke = SmokeTest.new(@identifier)
-      before_result = smoke.run(directory: Dir.pwd, output_dir: File.join(@output_dir, "before"))
+      before_result = smoke.run(directory: Dir.pwd, output_dir: File.join(@artifacts_dir, "before"))
 
       puts "4. Running smoke tests (after)..."
-      after_result = smoke.run(directory: worktree.path, output_dir: File.join(@output_dir, "after"))
+      after_result = smoke.run(directory: worktree.path, output_dir: File.join(@artifacts_dir, "after"))
 
       [before_result, after_result]
     end
 
-    def setup_output_dir
-      PumaServer.cleanup_stale(@output_dir) if File.directory?(@output_dir)
-      FileUtils.rm_rf(@output_dir)
-      FileUtils.mkdir_p(@output_dir)
+    def setup_dirs
+      PumaServer.cleanup_stale(@artifacts_dir) if File.directory?(@artifacts_dir)
+      FileUtils.rm_rf(@artifacts_dir)
+      FileUtils.mkdir_p(@artifacts_dir)
+      FileUtils.mkdir_p(@worktree_dir)
     end
 
     def shutdown_servers(servers)
