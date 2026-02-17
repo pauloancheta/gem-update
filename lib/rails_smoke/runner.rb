@@ -124,11 +124,11 @@ module RailsSmoke
 
       before_thread = Thread.new do
         run_smoke(smoke, directory: worktree.path, output_dir: File.join(@artifacts_dir, "before"),
-                  server_port: @config.before_port)
+                         server_port: @config.before_port)
       end
       after_thread = Thread.new do
         run_smoke(smoke, directory: Dir.pwd, output_dir: File.join(@artifacts_dir, "after"),
-                  server_port: @config.after_port)
+                         server_port: @config.after_port)
       end
 
       [before_thread.value, after_thread.value]
@@ -243,11 +243,11 @@ module RailsSmoke
 
       before_thread = Thread.new do
         run_smoke(smoke, directory: Dir.pwd, output_dir: File.join(@artifacts_dir, "before"),
-                  server_port: @config.before_port)
+                         server_port: @config.before_port)
       end
       after_thread = Thread.new do
         run_smoke(smoke, directory: worktree.path, output_dir: File.join(@artifacts_dir, "after"),
-                  server_port: @config.after_port)
+                         server_port: @config.after_port)
       end
 
       [before_thread.value, after_thread.value]
@@ -294,9 +294,7 @@ module RailsSmoke
                  smoke.run(directory: directory, output_dir: output_dir, server_port: server_port)
                end
 
-      if @config.probes
-        smoke.run_probes(probes: @config.probes, directory: directory, output_dir: output_dir)
-      end
+      smoke.run_probes(probes: @config.probes, directory: directory, output_dir: output_dir) if @config.probes
 
       result
     end

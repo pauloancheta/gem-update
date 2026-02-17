@@ -19,8 +19,8 @@ output_dir = config.fetch("output_dir")
 # --- Native Extensions ---
 
 native_gems = Gem.loaded_specs.values
-  .select { |spec| spec.extensions.any? }
-  .sort_by(&:name)
+                 .select { |spec| spec.extensions.any? }
+                 .sort_by(&:name)
 
 ext_output = +""
 ext_output << "status: OK\n"
@@ -37,10 +37,10 @@ File.write(File.join(output_dir, "probe_native_extensions.txt"), ext_output)
 # --- Shared Libraries ---
 
 lib_tool = if RUBY_PLATFORM =~ /darwin/
-  "otool -L"
-else
-  "ldd"
-end
+             "otool -L"
+           else
+             "ldd"
+           end
 
 libs_output = +""
 libs_output << "status: OK\n"
@@ -58,6 +58,7 @@ native_gems.each do |spec|
       stdout.each_line do |line|
         lib = line.strip
         next if lib.empty? || lib.end_with?(":")
+
         # Extract just the library name
         lib_name = lib.split(/\s/).first
         libs_output << "      #{lib_name}\n" if lib_name && !lib_name.empty?

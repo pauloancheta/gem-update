@@ -5,7 +5,7 @@ require "erb"
 require "open3"
 
 module RailsSmoke
-  class Config
+  class Config # rubocop:disable Metrics/ClassLength
     DEFAULTS = {
       "server" => false,
       "before_port" => 3000,
@@ -174,11 +174,7 @@ module RailsSmoke
     end
 
     def adapter_to_scheme(adapter)
-      case adapter
-      when "postgresql" then "postgresql"
-      when "mysql2" then "mysql2"
-      when "sqlite3" then "sqlite3"
-      end
+      { "postgresql" => "postgresql", "mysql2" => "mysql2", "sqlite3" => "sqlite3" }[adapter]
     end
 
     def current_git_branch

@@ -26,7 +26,7 @@ BINARIES = [
   ["openssl", "version"],
   ["psql", "--version"],
   ["redis-server", "--version"],
-  ["ruby", "--version"],
+  ["ruby", "--version"]
 ].freeze
 
 output = +""

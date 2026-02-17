@@ -19,7 +19,7 @@ output_dir = config.fetch("output_dir")
 
 boot_status = "OK"
 boot_error = nil
-boot_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
 begin
   require File.expand_path("config/environment")
@@ -28,7 +28,7 @@ rescue => e # rubocop:disable Style/RescueStandardError
   boot_error = "#{e.class}: #{e.message}\n#{e.backtrace&.first(20)&.join("\n")}"
 end
 
-boot_elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - boot_start
+Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
 boot_output = +"status: #{boot_status}\n"
 boot_output << "error:\n#{boot_error}\n" if boot_error
@@ -43,7 +43,6 @@ if boot_status == "FAILED"
 end
 
 eager_status = "OK"
-eager_error = nil
 
 begin
   Rails.application.eager_load!

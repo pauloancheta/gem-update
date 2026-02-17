@@ -54,7 +54,7 @@ class RailsSmoke::TestJsonReport < Minitest::Test
     report.generate
 
     data = parse_report
-    assert_includes ["fail", "regression", "baseline_broken"], data["result"]
+    assert_includes %w[fail regression baseline_broken], data["result"]
   end
 
   def test_result_regression_when_before_pass_after_fail

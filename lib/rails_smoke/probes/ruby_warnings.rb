@@ -28,10 +28,10 @@ if status.success?
   output << "warnings:\n"
 
   warnings = stderr.lines
-    .map(&:strip)
-    .reject(&:empty?)
-    .uniq
-    .sort
+                   .map(&:strip)
+                   .reject(&:empty?)
+                   .uniq
+                   .sort
 
   warnings.each { |w| output << "  #{w}\n" }
 else

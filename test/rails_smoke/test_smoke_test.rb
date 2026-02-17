@@ -4,7 +4,7 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 
-class RailsSmoke::TestSmokeTest < Minitest::Test
+class RailsSmoke::TestSmokeTest < Minitest::Test # rubocop:disable Metrics/ClassLength
   def setup
     @original_dir = Dir.pwd
     @tmpdir = File.realpath(Dir.mktmpdir("rails-smoke-smoke-test"))
@@ -156,14 +156,14 @@ class RailsSmoke::TestSmokeTest < Minitest::Test
     scripts = smoke.send(:probe_scripts, true)
 
     assert_equal 8, scripts.size
-    assert scripts.any? { |s| s.end_with?("boot_and_load.rb") }
-    assert scripts.any? { |s| s.end_with?("app_internals.rb") }
-    assert scripts.any? { |s| s.end_with?("rake_tasks.rb") }
-    assert scripts.any? { |s| s.end_with?("routes.rb") }
-    assert scripts.any? { |s| s.end_with?("native_gems.rb") }
-    assert scripts.any? { |s| s.end_with?("system_deps.rb") }
-    assert scripts.any? { |s| s.end_with?("ruby_warnings.rb") }
-    assert scripts.any? { |s| s.end_with?("ssl_certs.rb") }
+    assert(scripts.any? { |s| s.end_with?("boot_and_load.rb") })
+    assert(scripts.any? { |s| s.end_with?("app_internals.rb") })
+    assert(scripts.any? { |s| s.end_with?("rake_tasks.rb") })
+    assert(scripts.any? { |s| s.end_with?("routes.rb") })
+    assert(scripts.any? { |s| s.end_with?("native_gems.rb") })
+    assert(scripts.any? { |s| s.end_with?("system_deps.rb") })
+    assert(scripts.any? { |s| s.end_with?("ruby_warnings.rb") })
+    assert(scripts.any? { |s| s.end_with?("ssl_certs.rb") })
   end
 
   def test_run_probes_with_array_finds_app_internals
