@@ -179,6 +179,32 @@ class RailsSmoke::TestConfig < Minitest::Test # rubocop:disable Metrics/ClassLen
     assert_nil config.gem_name
   end
 
+  # --- probes ---
+
+  def test_probes_defaults_to_false
+    write_config("gem_name" => "rails")
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal false, config.probes
+  end
+
+  def test_probes_can_be_set_to_true
+    write_config("gem_name" => "rails", "probes" => true)
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal true, config.probes
+  end
+
+  def test_probes_can_be_set_to_array
+    write_config("gem_name" => "rails", "probes" => ["boot_and_load"])
+
+    config = RailsSmoke::Config.new(project_root: @tmpdir)
+
+    assert_equal ["boot_and_load"], config.probes
+  end
+
   # --- database_url_base auto-detection ---
 
   def test_auto_detects_database_url_base_from_database_yml

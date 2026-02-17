@@ -47,6 +47,9 @@ module RailsSmoke
 
       # Use an existing test command instead of manual smoke tests
       # test_command: "bundle exec rspec"
+
+      # Run built-in probes (boot check, eager load) against both versions
+      # probes: true
     YAML
 
     def initialize(project_root: Dir.pwd)

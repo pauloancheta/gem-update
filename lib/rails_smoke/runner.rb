@@ -279,11 +279,17 @@ module RailsSmoke
     end
 
     def run_smoke(smoke, directory:, output_dir:, server_port: nil)
-      if @config.test_command
-        smoke.run_command(command: @config.test_command, directory: directory, output_dir: output_dir)
-      else
-        smoke.run(directory: directory, output_dir: output_dir, server_port: server_port)
+      result = if @config.test_command
+                 smoke.run_command(command: @config.test_command, directory: directory, output_dir: output_dir)
+               else
+                 smoke.run(directory: directory, output_dir: output_dir, server_port: server_port)
+               end
+
+      if @config.probes
+        smoke.run_probes(probes: @config.probes, directory: directory, output_dir: output_dir)
       end
+
+      result
     end
 
     def setup_dirs

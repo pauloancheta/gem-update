@@ -130,6 +130,33 @@ sandbox: true
 | `setup_task` | `nil` | Rake task to run after schema load (e.g. `db:seed`, `db:fixtures:load`) |
 | `setup_script` | `nil` | Ruby script to run after setup_task (e.g. `test/smoke/seed.rb`) |
 | `test_command` | `nil` | Run an existing test command instead of manual smoke tests (e.g. `bundle exec rspec`) |
+| `probes` | `false` | Run built-in probes against both versions. Set to `true` for all probes, or an array like `["boot_and_load"]` for specific ones. |
+
+### Built-in probes
+
+Probes are lightweight diagnostic scripts that detect common breakage automatically — no custom smoke tests required. They run against both versions and their output flows through the existing diff infrastructure, so regressions show up in the report.
+
+Enable probes in `.rails_smoke.yml`:
+
+```yaml
+gem_name: rails
+probes: true
+```
+
+Or select specific probes:
+
+```yaml
+probes:
+  - boot_and_load
+```
+
+#### Available probes
+
+| Probe | What it checks |
+|---|---|
+| `boot_and_load` | Boots the Rails app (`config/environment.rb`) and runs `Rails.application.eager_load!`. Detects initializer crashes, missing constants, and broken autoloading. |
+
+Probe output files (`probe_boot.txt`, `probe_eager_load.txt`) are written to the same `smoke/` output directory as smoke tests, so they appear as diff sections in the report automatically.
 
 ### Sandbox mode
 

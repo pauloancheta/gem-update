@@ -53,6 +53,22 @@ module RailsSmoke
       Result.new(stdout: all_stdout, stderr: all_stderr, elapsed: elapsed, success: all_success)
     end
 
+    def run_probes(probes:, directory:, output_dir:)
+      smoke_output_dir = File.join(output_dir, "smoke")
+      FileUtils.mkdir_p(smoke_output_dir)
+
+      config_path = write_probe_config(output_dir, smoke_output_dir)
+
+      probe_scripts(probes).each do |script|
+        stdout, stderr, _status = Bundler.with_unbundled_env do
+          Open3.capture3("bundle", "exec", "ruby", script, config_path, chdir: directory)
+        end
+
+        $stdout.write(stdout) unless stdout.empty?
+        $stderr.write(stderr) unless stderr.empty?
+      end
+    end
+
     def run_command(command:, directory:, output_dir:)
       FileUtils.mkdir_p(output_dir)
 
@@ -72,6 +88,23 @@ module RailsSmoke
     end
 
     private
+
+    def probe_scripts(probes)
+      probes_dir = File.expand_path("probes", __dir__)
+      if probes == true
+        Dir.glob(File.join(probes_dir, "*.rb")).sort
+      else
+        Array(probes).map { |name| File.join(probes_dir, "#{name}.rb") }
+                     .select { |path| File.exist?(path) }
+      end
+    end
+
+    def write_probe_config(output_dir, smoke_output_dir)
+      config = { "output_dir" => File.expand_path(smoke_output_dir) }
+      path = File.join(output_dir, "probe_config.yml")
+      File.write(path, YAML.dump(config))
+      File.expand_path(path)
+    end
 
     def write_runtime_config(output_dir, server_port, smoke_output_dir)
       config = {

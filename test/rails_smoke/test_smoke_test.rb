@@ -120,6 +120,59 @@ class RailsSmoke::TestSmokeTest < Minitest::Test
     refute result.success
   end
 
+  def test_run_probes_executes_probe_script_and_writes_output
+    # Create a mock probe script in a temp probes dir
+    probes_dir = File.join(@tmpdir, "mock_probes")
+    FileUtils.mkdir_p(probes_dir)
+    File.write(File.join(probes_dir, "boot_and_load.rb"), <<~'RUBY')
+      require "yaml"
+      config = YAML.safe_load_file(ARGV[0])
+      output_dir = config.fetch("output_dir")
+      File.write(File.join(output_dir, "probe_boot.txt"), "status: OK\nboot_time: 0.123s\n")
+      File.write(File.join(output_dir, "probe_eager_load.txt"), "status: OK\nconstants_count: 42\n")
+    RUBY
+
+    File.write("Gemfile", 'source "https://rubygems.org"')
+    system("bundle", "install", "--quiet", out: File::NULL, err: File::NULL)
+
+    output_dir = File.join(@tmpdir, "output")
+    smoke = RailsSmoke::SmokeTest.new("myapp")
+
+    # Stub probe_scripts to return our mock script
+    smoke.define_singleton_method(:probe_scripts) do |_probes|
+      [File.join(probes_dir, "boot_and_load.rb")]
+    end
+
+    smoke.run_probes(probes: true, directory: @tmpdir, output_dir: output_dir)
+
+    assert File.exist?(File.join(output_dir, "smoke", "probe_boot.txt"))
+    assert File.exist?(File.join(output_dir, "smoke", "probe_eager_load.txt"))
+    assert_match(/status: OK/, File.read(File.join(output_dir, "smoke", "probe_boot.txt")))
+    assert_match(/status: OK/, File.read(File.join(output_dir, "smoke", "probe_eager_load.txt")))
+  end
+
+  def test_run_probes_with_true_finds_all_probe_scripts
+    smoke = RailsSmoke::SmokeTest.new("myapp")
+    scripts = smoke.send(:probe_scripts, true)
+
+    assert scripts.any? { |s| s.end_with?("boot_and_load.rb") }
+  end
+
+  def test_run_probes_with_array_finds_named_scripts
+    smoke = RailsSmoke::SmokeTest.new("myapp")
+    scripts = smoke.send(:probe_scripts, ["boot_and_load"])
+
+    assert_equal 1, scripts.size
+    assert scripts.first.end_with?("boot_and_load.rb")
+  end
+
+  def test_run_probes_with_array_ignores_missing_scripts
+    smoke = RailsSmoke::SmokeTest.new("myapp")
+    scripts = smoke.send(:probe_scripts, ["nonexistent"])
+
+    assert_empty scripts
+  end
+
   def test_runtime_config_omits_server_port_when_nil
     FileUtils.mkdir_p("test/smoke")
     File.write("test/smoke/myapp.rb", <<~'RUBY')

@@ -15,7 +15,8 @@ module RailsSmoke
       "setup_task" => nil,
       "setup_script" => nil,
       "database_url_base" => nil,
-      "test_command" => nil
+      "test_command" => nil,
+      "probes" => false
     }.freeze
 
     def initialize(project_root: Dir.pwd)
@@ -81,6 +82,10 @@ module RailsSmoke
 
     def test_command
       @settings["test_command"]
+    end
+
+    def probes
+      @settings["probes"]
     end
 
     def database_url_base
