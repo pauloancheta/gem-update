@@ -134,7 +134,9 @@ sandbox: true
 
 ### Built-in probes
 
-Probes are lightweight diagnostic scripts that detect common breakage automatically — no custom smoke tests required. They run against both versions and their output flows through the existing diff infrastructure, so regressions show up in the report.
+Probes are zero-config diagnostic scripts that snapshot your app's structure — boot behavior, autoloaded constants, job classes, mailer actions, rake tasks, and routes. rails-smoke runs each probe against both versions and diffs the output, so you can see exactly what changed without writing a single test.
+
+This matters because gem upgrades and branch changes often break things that a normal test suite won't catch: an initializer that no longer boots, a job class that got renamed, a mailer action that disappeared, a rake task that was removed, or a route that shifted. These are the kinds of issues you discover in staging (or production) instead of during review. Probes surface them in seconds, right in your diff report.
 
 Enable probes in `.rails_smoke.yml`:
 
@@ -155,8 +157,11 @@ probes:
 | Probe | What it checks |
 |---|---|
 | `boot_and_load` | Boots the Rails app (`config/environment.rb`) and runs `Rails.application.eager_load!`. Detects initializer crashes, missing constants, and broken autoloading. |
+| `app_internals` | Boots the Rails app and discovers all `ActiveJob::Base` and `ActionMailer::Base` descendants. Detects missing job/mailer classes and renamed actions after upgrades. |
+| `rake_tasks` | Runs `bundle exec rails -T` and captures the full task list. Detects renamed or removed rake tasks. |
+| `routes` | Runs `bundle exec rails routes` and captures the route table. Detects removed actions, renamed paths, and route changes. |
 
-Probe output files (`probe_boot.txt`, `probe_eager_load.txt`) are written to the same `smoke/` output directory as smoke tests, so they appear as diff sections in the report automatically.
+Probe output files (`probe_boot.txt`, `probe_eager_load.txt`, `probe_jobs.txt`, `probe_mailers.txt`, `probe_rake_tasks.txt`, `probe_routes.txt`) are written to the same `smoke/` output directory as smoke tests, so they appear as diff sections in the report automatically.
 
 ### Sandbox mode
 

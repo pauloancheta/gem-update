@@ -155,7 +155,19 @@ class RailsSmoke::TestSmokeTest < Minitest::Test
     smoke = RailsSmoke::SmokeTest.new("myapp")
     scripts = smoke.send(:probe_scripts, true)
 
+    assert_equal 4, scripts.size
     assert scripts.any? { |s| s.end_with?("boot_and_load.rb") }
+    assert scripts.any? { |s| s.end_with?("app_internals.rb") }
+    assert scripts.any? { |s| s.end_with?("rake_tasks.rb") }
+    assert scripts.any? { |s| s.end_with?("routes.rb") }
+  end
+
+  def test_run_probes_with_array_finds_app_internals
+    smoke = RailsSmoke::SmokeTest.new("myapp")
+    scripts = smoke.send(:probe_scripts, ["app_internals"])
+
+    assert_equal 1, scripts.size
+    assert scripts.first.end_with?("app_internals.rb")
   end
 
   def test_run_probes_with_array_finds_named_scripts

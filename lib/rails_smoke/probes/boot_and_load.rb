@@ -31,7 +31,6 @@ end
 boot_elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - boot_start
 
 boot_output = +"status: #{boot_status}\n"
-boot_output << "boot_time: #{format("%.3f", boot_elapsed)}s\n"
 boot_output << "error:\n#{boot_error}\n" if boot_error
 
 File.write(File.join(output_dir, "probe_boot.txt"), boot_output)
@@ -49,9 +48,13 @@ eager_error = nil
 begin
   Rails.application.eager_load!
 
-  constants = ObjectSpace.each_object(Module).map do |mod|
-    mod.name
-  end.compact.sort.uniq
+  constants = ObjectSpace.each_object(Module).filter_map do |mod|
+    name = mod.name
+    next if name.nil?
+    next if name.match?(/\A#</) # skip anonymous classes/modules
+
+    name
+  end.sort.uniq
 
   eager_output = +"status: #{eager_status}\n"
   eager_output << "constants_count: #{constants.size}\n"
